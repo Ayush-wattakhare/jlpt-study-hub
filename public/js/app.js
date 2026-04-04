@@ -10,7 +10,14 @@ let S = {
 let reminders=[];
 
 let currentUser = localStorage.getItem('jlptEmail');
+let currentToken = localStorage.getItem('jlptToken');
 let isGuest = localStorage.getItem('jlptGuest') === 'true';
+
+// Auto-Guest if fresh visit
+if (!currentUser && !isGuest) {
+  isGuest = true;
+  localStorage.setItem('jlptGuest', 'true');
+}
 
 // ── API ──
 const api = async (method,path,body)=>{
@@ -19,15 +26,27 @@ const api = async (method,path,body)=>{
       method,
       headers:{
         'Content-Type':'application/json',
-        'x-user-email': currentUser || (isGuest ? 'guest' : '')
+        'x-user-email': currentUser || (isGuest ? 'guest' : ''),
+        ...(currentToken ? { 'Authorization': `Bearer ${currentToken}` } : {})
       },
       body:body?JSON.stringify(body):undefined
     });
-    return await r.json();
+    const res = await r.json();
+    return res;
   }catch(e){return{success:false,error:e.message};}
 };
 
 // ── AUTHENTICATION ──
+function showAuthPage() {
+  document.getElementById('auth-layer').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeAuthPage() {
+  if (currentUser || isGuest) {
+    document.getElementById('auth-layer').style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+}
 async function handleAuth(type) {
   const email = document.getElementById('authEmail').value.trim();
   const pwd = document.getElementById('authPwd').value.trim();
@@ -41,8 +60,9 @@ async function handleAuth(type) {
   }
 
   const res = await api('POST', `/api/auth/${type}`, { email, password: pwd });
-  if (res.success) {
+  if (res.success && res.token) {
     localStorage.setItem('jlptEmail', email);
+    localStorage.setItem('jlptToken', res.token);
     localStorage.removeItem('jlptGuest');
     location.reload();
   } else {
@@ -50,36 +70,39 @@ async function handleAuth(type) {
     errEl.style.display = 'block';
   }
 }
-
 function handleLogout() {
   localStorage.removeItem('jlptEmail');
+  localStorage.removeItem('jlptToken');
   localStorage.removeItem('jlptGuest');
   location.reload();
 }
-
 function continueAsGuest() {
   localStorage.setItem('jlptGuest', 'true');
+  localStorage.removeItem('jlptEmail');
+  localStorage.removeItem('jlptToken');
   location.reload();
 }
 
 // ── INIT ──
 async function init(){
-  if (!currentUser && !isGuest) {
-    document.getElementById('auth-layer').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-    return;
+  // If not logged in, we auto-default to Guest above (at top level variable init)
+  // so we always proceed unless someone EXPLICITLY wants to see auth
+  
+  const al = document.getElementById('auth-layer');
+  if (currentUser) {
+    al.style.display = 'none';
+  } else {
+    // If guest, we just check if they are "active guest" or "fresh guest"
+    // The top-level init already did the heavy lifting.
+    al.style.display = 'none';
   }
-  document.getElementById('auth-layer').style.display = 'none';
   document.body.style.overflow = 'auto';
 
   const navAuthBtn = document.getElementById('navAuthBtn');
   if (navAuthBtn) {
     if (isGuest) {
       navAuthBtn.textContent = 'Sign In';
-      navAuthBtn.onclick = () => {
-        localStorage.removeItem('jlptGuest');
-        location.reload();
-      };
+      navAuthBtn.onclick = showAuthPage;
     } else {
       navAuthBtn.textContent = 'Logout';
       navAuthBtn.onclick = handleLogout;

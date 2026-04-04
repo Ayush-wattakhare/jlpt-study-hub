@@ -2,10 +2,12 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
+const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'jlpt-super-secret-key';
 
 // ── Supabase Setup ──
 const isPlaceholder = !process.env.SUPABASE_URL || process.env.SUPABASE_URL.includes('your-project') || process.env.SUPABASE_URL.includes('placeholder');
@@ -16,9 +18,7 @@ if (!isPlaceholder) {
   try {
     supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
     console.log('✅ Supabase database connected');
-  } catch (e) {
-    console.warn('⚠️ Supabase init failed:', e.message);
-  }
+  } catch (e) { console.warn('⚠️ Supabase init failed:', e.message); }
 }
 
 app.use(bodyParser.json({ limit: '5mb' }));
@@ -38,18 +38,13 @@ const defaultState = {
   nextReminderId: 3,
 };
 
-// ── Database Layer (Profiles Table) ──
+// ── Database Layer ──
 async function dbGet(id) {
   if (supabase) {
     try {
       const { data, error } = await supabase.from('profiles').select('*').eq('email', id).single();
-      if (error) {
-        if (error.code !== 'PGRST116') console.warn('Supabase Fetch Error:', error.message);
-      }
       if (data) return data;
-    } catch (e) {
-      console.error('Supabase unexpected error:', e.message);
-    }
+    } catch (e) {}
   }
   return usersDB[id];
 }
@@ -57,79 +52,98 @@ async function dbGet(id) {
 async function dbSave(id, data) {
   if (supabase) {
     try {
-      const { error } = await supabase.from('profiles').upsert({ email: id, ...data });
-      if (error) console.error('Supabase Save Error (Check if RLS is disabled!):', error.message);
-      else console.log(`✅ Saved state for user: ${id}`);
-    } catch (e) {
-      console.error('Supabase Save Exception:', e.message);
-    }
+      await supabase.from('profiles').upsert({ email: id, ...data });
+    } catch (e) { console.error('DB save error:', e.message); }
   }
   usersDB[id] = { ...data };
 }
 
+// ── Auth Middleware (JWT) ──
+function authenticate(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const emailHeader = req.headers['x-user-email'];
+  
+  if (emailHeader === 'guest') {
+    req.userEmail = 'guest';
+    return next();
+  }
+
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    req.userEmail = 'guest';
+    return next();
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      req.userEmail = 'guest';
+      return next();
+    }
+    req.userEmail = user.email;
+    next();
+  });
+}
+
 // ══════════════════════════════════════════
-//  AUTH ROUTES (SIMPLE USERNAME/PASSWORD)
+//  AUTH ROUTES
 // ══════════════════════════════════════════
 
-// POST Register
 app.post('/api/auth/register', async (req, res) => {
-  const { email: id, password } = req.body;
-  if (!id || !password) return res.json({ success: false, error: 'Missing username or password' });
+  const { email, password } = req.body;
+  if (!email || !password) return res.json({ success: false, error: 'Missing username/password' });
   
-  const existing = await dbGet(id);
+  const existing = await dbGet(email);
   if (existing) return res.json({ success: false, error: 'User already exists' });
   
-  await dbSave(id, { password, state: defaultState });
-  res.json({ success: true });
+  // CRITICAL: Deep clone defaultState to prevent object leakage
+  await dbSave(email, { password, state: JSON.parse(JSON.stringify(defaultState)) });
+  const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '7d' });
+  res.json({ success: true, token });
 });
 
-// POST Login
 app.post('/api/auth/login', async (req, res) => {
-  const { email: id, password } = req.body;
-  const user = await dbGet(id);
+  const { email, password } = req.body;
+  const user = await dbGet(email);
+  if (!user || user.password !== password) return res.json({ success: false, error: 'Invalid credentials' });
   
-  if (!user) return res.json({ success: false, error: 'User not found' });
-  if (user.password !== password) return res.json({ success: false, error: 'Incorrect password' });
-  
-  res.json({ success: true });
+  const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '7d' });
+  res.json({ success: true, token });
 });
 
-// ── STATE API ──
+// ── PROTECTED STATE ROUTES ──
+app.use('/api/state', authenticate);
+
 app.get('/api/state', async (req, res) => {
-  const id = req.headers['x-user-email'];
-  if (!id || id === 'guest') return res.json({ success: true, data: defaultState });
-  
+  const id = req.userEmail;
+  if (id === 'guest') return res.json({ success: true, data: JSON.parse(JSON.stringify(defaultState)) });
   const user = await dbGet(id);
-  res.json({ success: true, data: user ? user.state : defaultState });
+  res.json({ success: true, data: user ? user.state : JSON.parse(JSON.stringify(defaultState)) });
 });
 
 app.patch('/api/state', async (req, res) => {
-  const id = req.headers['x-user-email'];
-  if (!id || id === 'guest') return res.json({ success: true });
+  const id = req.userEmail;
+  if (id === 'guest') return res.json({ success: true });
   
   const user = await dbGet(id);
   const state = user ? user.state : JSON.parse(JSON.stringify(defaultState));
-  
-  Object.keys(req.body).forEach(k => {
-    if (req.body[k] !== undefined) state[k] = req.body[k];
-  });
-  
+  Object.keys(req.body).forEach(k => { if (req.body[k] !== undefined) state[k] = req.body[k]; });
   await dbSave(id, { password: user ? user.password : '', state });
   res.json({ success: true });
 });
 
 app.post('/api/state/reset', async (req, res) => {
-  const id = req.headers['x-user-email'];
-  if (id && id !== 'guest') {
+  const id = req.userEmail;
+  if (id !== 'guest') {
     const user = await dbGet(id);
-    await dbSave(id, { password: user ? user.password : '', state: defaultState });
+    await dbSave(id, { password: user ? user.password : '', state: JSON.parse(JSON.stringify(defaultState)) });
   }
   res.json({ success: true });
 });
 
-// XP & Study Time
-app.post('/api/xp', async (req, res) => {
-  const id = req.headers['x-user-email'];
+// XP & Other routes
+app.post('/api/xp', authenticate, async (req, res) => {
+  const id = req.userEmail;
+  if (id === 'guest') return res.json({ success: true });
   const user = await dbGet(id);
   if (!user) return res.json({ success: false });
   user.state.xp = (user.state.xp || 0) + (Number(req.body.amount) || 0);
@@ -137,8 +151,9 @@ app.post('/api/xp', async (req, res) => {
   res.json({ success: true, xp: user.state.xp });
 });
 
-app.post('/api/study-time', async (req, res) => {
-  const id = req.headers['x-user-email'];
+app.post('/api/study-time', authenticate, async (req, res) => {
+  const id = req.userEmail;
+  if (id === 'guest') return res.json({ success: true });
   const user = await dbGet(id);
   if (!user) return res.json({ success: false });
   user.state.studyTimeSeconds = (user.state.studyTimeSeconds || 0) + (Number(req.body.seconds) || 0);
@@ -146,48 +161,10 @@ app.post('/api/study-time', async (req, res) => {
   res.json({ success: true, studyTimeSeconds: user.state.studyTimeSeconds });
 });
 
-app.post('/api/test-result', async (req, res) => {
-  const id = req.headers['x-user-email'];
-  const user = await dbGet(id);
-  if (!user) return res.json({ success: false });
-  
-  const result = { ...req.body, timestamp: new Date().toISOString() };
-  if (!user.state.testResults) user.state.testResults = [];
-  user.state.testResults.unshift(result);
-  if (user.state.testResults.length > 30) user.state.testResults = user.state.testResults.slice(0, 30);
-  
-  if (result.weakAreas) {
-    if (!user.state.weakAreas) user.state.weakAreas = {};
-    result.weakAreas.forEach(area => { user.state.weakAreas[area] = (user.state.weakAreas[area] || 0) + 1; });
-  }
-  user.state.xp = (user.state.xp || 0) + Math.round((result.score || 0) / 100 * 200 + 50);
-  await dbSave(id, user);
-  res.json({ success: true });
-});
-
-// Reminders
-app.get('/api/reminders', async (req, res) => {
-  const id = req.headers['x-user-email'];
-  const user = await dbGet(id);
-  if (!user) return res.json({ success: true, reminders: defaultState.reminders });
-  res.json({ success: true, reminders: user.state.reminders || [], phoneNumber: user.state.phoneNumber });
-});
-
-app.post('/api/reminders', async (req, res) => {
-  const id = req.headers['x-user-email'];
-  const user = await dbGet(id);
-  if (!user) return res.json({ success: false });
-  const rem = { id: user.state.nextReminderId++, time: req.body.time, label: req.body.label, enabled: true };
-  user.state.reminders.push(rem);
-  await dbSave(id, user);
-  res.json({ success: true, reminder: rem });
-});
-
-// Serve frontend
+// Serving frontend
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 app.listen(PORT, () => {
   console.log(`\n🎌 JLPT Study Hub → http://localhost:${PORT}`);
-  if (isPlaceholder) console.log('💡 Note: Supabase not configured. Using Local Storage.');
-  else console.log('✅ Simple Username/Password Authentication Active (Profiles DB Mode)');
+  console.log('✅ JWT Authentication Middleware active');
 });

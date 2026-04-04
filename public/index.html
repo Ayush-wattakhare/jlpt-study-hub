@@ -20,7 +20,10 @@
     <input type="password" id="authPwd" class="auth-input" placeholder="Password" style="width:100%;padding:14px 18px;margin-bottom:28px;border-radius:10px;font-family:var(--font-body);font-size:15px">
     <button class="btn-primary btn-lg" style="width:100%;margin-bottom:14px" onclick="handleAuth('login')">Sign In</button>
     <button class="btn-secondary" style="width:100%;margin-bottom:20px;font-size:15px;padding:12px" onclick="handleAuth('register')">Create Account</button>
-    <button style="border:none;background:none;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer;font-family:var(--font-body)" onclick="continueAsGuest()">Continue as Guest (No saving)</button>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <button style="border:none;background:none;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer;font-family:var(--font-body)" onclick="continueAsGuest()">Continue as Guest (No saving)</button>
+      <button style="border:none;background:none;color:var(--indigo);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-body)" onclick="closeAuthPage()">← Back to App (Maybe Later)</button>
+    </div>
   </div>
 </div>
 
