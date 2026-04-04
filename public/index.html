@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日本語 N5 & N4 — JLPT Study Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<!-- AUTH LAYER -->
+<div id="auth-layer" style="position:fixed;inset:0;z-index:9000;display:none;align-items:center;justify-content:center">
+  <div class="auth-card" style="border-radius:var(--radius);text-align:center;box-shadow:var(--shadow-lg);width:100%">
+    <h1 class="auth-title" style="font-family:var(--font-display);margin-bottom:4px;color:var(--ink)">日本語</h1>
+    <p style="color:var(--muted);font-size:15px;margin-bottom:32px;font-weight:600">JLPT Study Hub</p>
+    <div id="authError" style="color:var(--red);background:var(--red-soft);padding:8px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none"></div>
+    <input type="email" id="authEmail" class="auth-input" placeholder="Email address" style="width:100%;padding:14px 18px;margin-bottom:14px;border-radius:10px;font-family:var(--font-body);font-size:15px">
+    <input type="password" id="authPwd" class="auth-input" placeholder="Password" style="width:100%;padding:14px 18px;margin-bottom:28px;border-radius:10px;font-family:var(--font-body);font-size:15px">
+    <button class="btn-primary btn-lg" style="width:100%;margin-bottom:14px" onclick="handleAuth('login')">Sign In</button>
+    <button class="btn-secondary" style="width:100%;margin-bottom:20px;font-size:15px;padding:12px" onclick="handleAuth('register')">Create Account</button>
+    <button style="border:none;background:none;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer;font-family:var(--font-body)" onclick="continueAsGuest()">Continue as Guest (No saving)</button>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div id="confirm-layer" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9100;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:32px;width:100%;max-width:340px;text-align:center;box-shadow:var(--shadow-lg)">
+    <div style="font-size:40px;margin-bottom:16px">⚠️</div>
+    <h1 style="font-family:var(--font-display);font-size:22px;margin-bottom:12px;color:var(--ink)">Reset Progress?</h1>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:24px;line-height:1.6">This will permanently clear your streak, XP, and tracker history. This action cannot be undone.</p>
+    <div style="display:flex;gap:10px">
+      <button class="btn-secondary" style="flex:1" onclick="closeConfirmModal()">Cancel</button>
+      <button class="btn-danger" style="flex:1" onclick="executeReset()">Reset All</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOP NAV ── -->
+<nav class="nav">
+  <div class="nav-logo">日本語 <span>JLPT Study Hub</span></div>
+  <div class="nav-links">
+    <button class="nav-btn active" onclick="goto('dashboard',this)">Dashboard</button>
+    <button class="nav-btn" onclick="goto('learn',this)">Learn</button>
+    <button class="nav-btn" onclick="goto('practice',this)">Practice</button>
+    <button class="nav-btn" onclick="goto('test',this)">Tests</button>
+    <button class="nav-btn" onclick="goto('exam',this)">Live Exam</button>
+    <button class="nav-btn" onclick="goto('tracker',this)">Tracker</button>
+    <button class="nav-btn" onclick="goto('reminders',this)">Reminders</button>
+  </div>
+  <div class="nav-right">
+    <div class="level-pill">
+      <button class="lvl-btn active" onclick="setLevel('N5',this)">N5</button>
+      <button class="lvl-btn" onclick="setLevel('N4',this)">N4</button>
+    </div>
+    <div class="streak-badge">🔥 <span id="streakNum">0</span> day streak</div>
+    <button class="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+    <button class="nav-btn" id="navAuthBtn" onclick="handleLogout()" style="padding:5px 10px;margin-left:6px;border:1px solid var(--border)">Logout</button>
+  </div>
+</nav>
+
+<!-- ── PAGES ── -->
+<main class="main-content">
+
+<!-- DASHBOARD -->
+<section class="page active" id="page-dashboard">
+  <!-- Hero -->
+  <div class="dash-hero">
+    <div>
+      <div class="dash-greeting">こんにちは, <em id="dashGreeting">Ayush!</em><br><strong>Keep going.</strong></div>
+      <div class="dash-date" id="dashDate"></div>
+    </div>
+    <div class="today-card">
+      <div class="today-label">TODAY</div>
+      <div class="today-day" id="todayDayNum">1</div>
+      <div class="today-phase" id="todayPhase">Vocabulary</div>
+      <div class="today-task" id="todayTask">Numbers &amp; counters</div>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--teal)" id="statVoc">0 <span class="sep">/</span> <span class="total">150</span></div>
+      <div class="stat-label">Vocab learned</div>
+      <div class="stat-bar"><div class="stat-bar-fill" id="sfVoc" style="background:var(--teal);width:0%"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--ink)" id="statGram">0 <span class="sep">/</span> <span class="total">13</span></div>
+      <div class="stat-label">Grammar patterns</div>
+      <div class="stat-bar"><div class="stat-bar-fill" id="sfGram" style="background:var(--ink);width:0%"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--gold)" id="statKanji">0 <span class="sep">/</span> <span class="total">44</span></div>
+      <div class="stat-label">Kanji learned</div>
+      <div class="stat-bar"><div class="stat-bar-fill" id="sfKanji" style="background:var(--gold);width:0%"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--red)" id="statFlash">0</div>
+      <div class="stat-label">XP earned</div>
+      <div class="stat-bar"><div class="stat-bar-fill" id="sfFlash" style="background:var(--red);width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- Grid: Phases + Activity -->
+  <div class="dash-grid">
+    <div>
+      <div class="section-label">Study Phases</div>
+      <div class="phase-timeline" id="phaseTimeline"></div>
+    </div>
+    <div>
+      <div class="section-label">Activity — This Month</div>
+      <div class="side-card">
+        <div class="mini-cal" id="miniCal"></div>
+      </div>
+      <div class="section-label">Today's Reminders</div>
+      <div class="side-card" id="dashReminders"></div>
+    </div>
+  </div>
+
+  <!-- Grid: Weak Areas + Test History -->
+  <div class="dash-grid" style="margin-top:20px">
+    <div>
+      <div class="section-label">⚠️ Weak Areas</div>
+      <div class="side-card" id="weakAreasPanel"><div style="font-size:13px;color:var(--muted)">Take tests to identify weak areas!</div></div>
+    </div>
+    <div>
+      <div class="section-label">📈 Test History</div>
+      <div class="side-card" id="testHistoryPanel"><div style="font-size:13px;color:var(--muted)">No tests taken yet.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- LEARN -->
+<section class="page" id="page-learn">
+  <div class="page-header"><h1 class="page-title">📖 Learn <span id="learnLevelBadge" style="font-size:16px;color:var(--muted)">N5</span></h1></div>
+  <div class="learn-tabs" id="learnTabs">
+    <button class="tab-btn active" onclick="learnTab('writing',this)">✍️ Writing Systems</button>
+    <button class="tab-btn" onclick="learnTab('vocab',this)">📚 Vocabulary</button>
+    <button class="tab-btn" onclick="learnTab('grammar',this)">🔤 Grammar</button>
+    <button class="tab-btn" onclick="learnTab('kanji',this)">漢 Kanji</button>
+  </div>
+  <!-- Writing -->
+  <div class="learn-section active" id="ls-writing">
+    <div class="writing-tabs">
+      <button class="stab active" onclick="writingTab('hiragana',this)">ひらがな Hiragana</button>
+      <button class="stab" onclick="writingTab('katakana',this)">カタカナ Katakana</button>
+    </div>
+    <div id="hiragana-grid" class="kana-grid"></div>
+    <div id="katakana-grid" class="kana-grid" style="display:none"></div>
+  </div>
+  <!-- Vocab -->
+  <div class="learn-section" id="ls-vocab">
+    <div class="filter-bar" id="vocabFilterBar"></div>
+    <div class="vocab-grid" id="vocabGrid"></div>
+  </div>
+  <!-- Grammar -->
+  <div class="learn-section" id="ls-grammar">
+    <div id="grammarList"></div>
+  </div>
+  <!-- Kanji -->
+  <div class="learn-section" id="ls-kanji">
+    <div class="filter-bar" id="kanjiFilterBar"></div>
+    <p class="hint-text">Tap a kanji to mark it as learned.</p>
+    <div class="kanji-grid" id="kanjiGrid"></div>
+  </div>
+</section>
+
+<!-- PRACTICE -->
+<section class="page" id="page-practice">
+  <div class="page-header"><h1 class="page-title">✏️ Practice</h1></div>
+  <div class="learn-tabs" id="practiceTabs">
+    <button class="tab-btn active" onclick="practiceTab('kana',this)">ひ Kana Quiz</button>
+    <button class="tab-btn" onclick="practiceTab('vocab',this)">📚 Vocab Quiz</button>
+    <button class="tab-btn" onclick="practiceTab('grammar',this)">🔤 Grammar Quiz</button>
+    <button class="tab-btn" onclick="practiceTab('kanji',this)">漢 Kanji Quiz</button>
+    <button class="tab-btn" onclick="practiceTab('flashcard',this)">🃏 Flashcards</button>
+    <button class="tab-btn" onclick="practiceTab('listening',this)">🎧 Listening</button>
+  </div>
+  <div id="practice-area"></div>
+</section>
+
+<!-- TEST -->
+<section class="page" id="page-test">
+  <div class="page-header"><h1 class="page-title">📝 Practice Tests</h1></div>
+  <div class="test-set-grid" id="testSetGrid"></div>
+  <div id="test-question-area" style="display:none"></div>
+  <div id="test-results-area" style="display:none"></div>
+</section>
+
+<!-- LIVE EXAM -->
+<section class="page" id="page-exam">
+  <div class="page-header"><h1 class="page-title">⏱ Live Exam Mode</h1></div>
+  <div id="exam-lobby">
+    <div class="exam-info-card">
+      <div class="exam-icon">🎌</div>
+      <h2>JLPT <span id="examLevelLabel">N5</span> Full Simulation</h2>
+      <p>Real exam environment with countdown timer. Auto-submits when time expires.</p>
+      <div class="exam-details-grid">
+        <div class="exam-detail"><span>📖 Vocab</span><strong>25 Qs</strong></div>
+        <div class="exam-detail"><span>🔤 Grammar</span><strong>20 Qs</strong></div>
+        <div class="exam-detail"><span>📄 Reading</span><strong>15 Qs</strong></div>
+        <div class="exam-detail"><span>⏱ Time</span><strong id="examTimeLabel">105 min</strong></div>
+      </div>
+      <button class="btn-primary btn-lg" onclick="startLiveExam()">🚀 Start Live Exam</button>
+    </div>
+  </div>
+  <div id="exam-active" style="display:none">
+    <div class="exam-header">
+      <div class="exam-timer-display" id="examTimerDisplay">1:45:00</div>
+      <div class="exam-progress-info">
+        <span id="examQNum">Q 1/60</span>
+        <div class="exam-prog-bar"><div id="examProgFill" style="width:0%"></div></div>
+      </div>
+      <button class="btn-danger" onclick="submitExam(true)">Submit</button>
+    </div>
+    <div id="examBody"></div>
+  </div>
+  <div id="exam-results" style="display:none"></div>
+</section>
+
+<!-- TRACKER -->
+<section class="page" id="page-tracker">
+  <div class="tracker-header">
+    <h1 class="page-title">My Progress</h1>
+    <button class="btn-secondary" onclick="showResetConfirm()" style="font-size:13px;padding:8px 18px">Reset all</button>
+  </div>
+  <div class="tracker-prog-grid">
+    <div class="tpb">
+      <div class="tpb-top"><span class="tpb-num" id="tpVocNum" style="color:var(--teal)">0/90</span><span class="tpb-pct" id="tpVocPct">0%</span></div>
+      <div class="tpb-label">Vocabulary</div>
+      <div class="tpb-bar"><div class="tpb-bar-fill" id="tpVocBar" style="background:var(--teal);width:0%"></div></div>
+    </div>
+    <div class="tpb">
+      <div class="tpb-top"><span class="tpb-num" id="tpGramNum" style="color:var(--ink)">0/13</span><span class="tpb-pct" id="tpGramPct">0%</span></div>
+      <div class="tpb-label">Grammar patterns</div>
+      <div class="tpb-bar"><div class="tpb-bar-fill" id="tpGramBar" style="background:var(--ink);width:0%"></div></div>
+    </div>
+    <div class="tpb">
+      <div class="tpb-top"><span class="tpb-num" id="tpKanjiNum" style="color:var(--gold)">0/100</span><span class="tpb-pct" id="tpKanjiPct">0%</span></div>
+      <div class="tpb-label">Kanji</div>
+      <div class="tpb-bar"><div class="tpb-bar-fill" id="tpKanjiBar" style="background:var(--gold);width:0%"></div></div>
+    </div>
+    <div class="tpb">
+      <div class="tpb-top"><span class="tpb-num" id="tpTestNum" style="color:var(--red)">0/4</span><span class="tpb-pct" id="tpTestPct">0%</span></div>
+      <div class="tpb-label">Mock tests</div>
+      <div class="tpb-bar"><div class="tpb-bar-fill" id="tpTestBar" style="background:var(--red);width:0%"></div></div>
+    </div>
+  </div>
+  <div id="checklistContainer"></div>
+</section>
+
+<!-- REMINDERS -->
+<section class="page" id="page-reminders">
+  <h1 class="page-title" style="margin-bottom:24px">Study Reminders</h1>
+  <div class="rem-grid">
+    <div>
+      <div class="rem-card">
+        <div class="rem-card-title">Daily sessions</div>
+        <div id="remSlotsList"></div>
+        <div class="rem-add-form">
+          <input type="time" id="remTimeInp" value="08:00">
+          <input type="text" id="remLabelInp" placeholder="Label...">
+          <button class="btn-primary" style="padding:9px 18px;font-size:13px" onclick="addReminder()">Add</button>
+        </div>
+      </div>
+      <div class="notif-card">
+        <div style="font-weight:600;font-size:14px">Notification permission</div>
+        <p>Enable browser notifications to get study reminders even when the tab is in the background.</p>
+        <button class="btn-primary" style="background:var(--teal);border:none;font-size:13px;padding:10px 20px" onclick="enableNotifs()">Enable notifications</button>
+      </div>
+    </div>
+    <div>
+      <div class="tips-card">
+        <div class="tips-card-title">Study tips from sensei</div>
+        <div class="tip-row"><span class="tip-num">01</span><span>Use Anki for vocabulary — spaced repetition is proven to stick words long-term.</span></div>
+        <div class="tip-row"><span class="tip-num">02</span><span>Never use romaji. Read everything in hiragana/katakana — you already know them!</span></div>
+        <div class="tip-row"><span class="tip-num">03</span><span>Morning session is for learning new content; evening session is strictly for review.</span></div>
+        <div class="tip-row"><span class="tip-num">04</span><span>Watch NHK Easy News daily — real Japanese at N5 speed with furigana.</span></div>
+        <div class="tip-row"><span class="tip-num">05</span><span>Write grammar examples in a notebook. Physical writing beats reading for retention.</span></div>
+        <div class="tip-row"><span class="tip-num">06</span><span>Use jlpt.jp official sample tests for mock practice — nothing else matches the real format.</span></div>
+      </div>
+      <div class="quick-resources" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:16px">
+        <div class="qr-title">Quick resources</div>
+        <a class="qr-link" href="https://www.jlpt.jp/e/samples/forlearners.html" target="_blank">JLPT Official Sample Questions →</a>
+        <a class="qr-link" href="https://www3.nhk.or.jp/news/easy/" target="_blank">NHK Easy News (easy Japanese) →</a>
+        <a class="qr-link" href="https://apps.ankiweb.net" target="_blank">Anki Flashcard App →</a>
+        <a class="qr-link" href="https://jisho.org" target="_blank">Jisho Online Dictionary →</a>
+        <a class="qr-link" href="https://bunpro.jp" target="_blank">Bunpro Grammar SRS →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ── FLOATING TIMER ── -->
+<div class="float-timer" id="floatTimer">
+  <div class="ft-inner">
+    <span class="ft-icon">⏰</span>
+    <span class="ft-time" id="ftTime">00:00:00</span>
+    <div class="ft-btns">
+      <button onclick="timerToggle()" id="ftBtn" title="Start/Pause">▶</button>
+      <button onclick="timerReset()" title="Reset">↺</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── JAPANESE WATERMARK ── -->
+<div class="jap-accent">日本語能力試験</div>
+
+<!-- ── TOAST ── -->
+<div class="toast" id="toast"><span id="toastMsg"></span></div>
+
+<!-- ── MODAL ── -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+  <div class="modal-box" onclick="event.stopPropagation()" id="modalBox"></div>
+</div>
+
+<script src="/js/data.js"></script>
+<script src="/js/data-extra.js"></script>
+<script src="/js/exam-data.js"></script>
+<script src="/js/n4-tests.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
