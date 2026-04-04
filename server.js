@@ -7,11 +7,19 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ── Supabase Setup ──
-const supabase = createClient(
-  process.env.SUPABASE_URL || 'https://placeholder.supabase.co',
-  process.env.SUPABASE_KEY || 'placeholder'
-);
+// ── Supabase Setup with Auth ──
+const isPlaceholder = !process.env.SUPABASE_URL || process.env.SUPABASE_URL.includes('your-project') || process.env.SUPABASE_URL.includes('placeholder');
+let supabase = null;
+let usersDB = {}; // Fallback in-memory DB
+
+if (!isPlaceholder) {
+  try {
+    supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+    console.log('✅ Supabase client initialized');
+  } catch (e) {
+    console.warn('⚠️ Supabase init failed:', e.message);
+  }
+}
 
 // ── Twilio setup (optional) ──
 let twilioClient = null;
@@ -22,7 +30,7 @@ if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN &&
     twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
     console.log('✅ Twilio SMS client initialized');
   } catch (e) {
-    console.warn('⚠️  Twilio init failed:', e.message);
+    console.warn('⚠️ Twilio init failed:', e.message);
   }
 }
 
@@ -47,13 +55,19 @@ async function getProfile(req) {
   const email = req.headers['x-user-email'];
   if (!email || email === 'guest') return JSON.parse(JSON.stringify(defaultState));
   
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('state')
-    .eq('email', email)
-    .single();
-    
-  if (data) return data.state;
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from('profiles').select('state').eq('email', email).single();
+      if (data) return data.state;
+      // If profile not found, maybe initialize it
+      if (error && error.code === 'PGRST116') {
+        await supabase.from('profiles').insert({ email, state: defaultState });
+        return defaultState;
+      }
+    } catch (e) { console.error('DB fetch error:', e); }
+  }
+  
+  if (usersDB[email]) return usersDB[email].state;
   return JSON.parse(JSON.stringify(defaultState));
 }
 
@@ -66,11 +80,18 @@ async function updateProfile(req, updates) {
     if (updates[k] !== undefined) state[k] = updates[k];
   });
   
-  await supabase.from('profiles').upsert({ email, state });
+  if (supabase) {
+    try {
+      await supabase.from('profiles').upsert({ email, state });
+    } catch (e) { console.error('DB save error:', e); }
+  }
+  
+  if (!usersDB[email]) usersDB[email] = { password: '', state };
+  usersDB[email].state = state;
 }
 
 // ══════════════════════════════════════════
-//  API ROUTES
+//  AUTH ROUTES (Now with Real Supabase Auth)
 // ══════════════════════════════════════════
 
 // POST Register
@@ -78,35 +99,38 @@ app.post('/api/auth/register', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.json({ success: false, error: 'Missing email or password' });
   
-  try {
-    const { data: existing } = await supabase.from('profiles').select('email').eq('email', email).single();
-    if (existing) return res.json({ success: false, error: 'Email already registered' });
-    
-    const { error } = await supabase.from('profiles').insert({ email, password, state: defaultState });
+  if (supabase) {
+    const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) return res.json({ success: false, error: error.message });
-    res.json({ success: true });
-  } catch (e) {
-    res.json({ success: false, error: 'Database connection failed. Check your Supabase settings in .env' });
+    
+    // Initialize profile
+    await supabase.from('profiles').upsert({ email, state: defaultState });
+    return res.json({ success: true, user: data.user });
   }
+  
+  // Fallback mode
+  if (usersDB[email]) return res.json({ success: false, error: 'Already registered locally' });
+  usersDB[email] = { password, state: JSON.parse(JSON.stringify(defaultState)) };
+  res.json({ success: true });
 });
 
 // POST Login
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
-  try {
-    const { data } = await supabase.from('profiles').select('password').eq('email', email).single();
-    if (!data) return res.json({ success: false, error: 'Account not found' });
-    if (data.password !== password) return res.json({ success: false, error: 'Incorrect password' });
-    res.json({ success: true });
-  } catch (e) {
-    res.json({ success: false, error: 'Database connection failed. Check your Supabase settings in .env' });
+  
+  if (supabase) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return res.json({ success: false, error: error.message });
+    return res.json({ success: true, user: data.user });
   }
+
+  // Fallback mode
+  if (usersDB[email] && usersDB[email].password === password) return res.json({ success: true });
+  res.json({ success: false, error: 'Invalid credentials or account not found' });
 });
 
 // GET full state
-app.get('/api/state', async (req, res) => {
-  res.json({ success: true, data: await getProfile(req) });
-});
+app.get('/api/state', async (req, res) => res.json({ success: true, data: await getProfile(req) }));
 
 // PATCH partial state update
 app.patch('/api/state', async (req, res) => {
@@ -118,7 +142,8 @@ app.patch('/api/state', async (req, res) => {
 app.post('/api/state/reset', async (req, res) => {
   const email = req.headers['x-user-email'];
   if (email && email !== 'guest') {
-    await supabase.from('profiles').upsert({ email, state: JSON.parse(JSON.stringify(defaultState)) });
+    if (supabase) await supabase.from('profiles').upsert({ email, state: defaultState });
+    if (usersDB[email]) usersDB[email].state = JSON.parse(JSON.stringify(defaultState));
   }
   res.json({ success: true });
 });
@@ -170,10 +195,10 @@ app.post('/api/reminders', async (req, res) => {
 });
 
 // Serve frontend
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 app.listen(PORT, () => {
-  console.log(`\n🎌 JLPT Study Platform → http://localhost:${PORT}`);
+  console.log(`\n🎌 JLPT Study Hub → http://localhost:${PORT}`);
+  if (isPlaceholder) console.log('💡 Note: Supabase is NOT configured. Using Local In-Memory Mode.');
+  else console.log('✅ Real Supabase Auth Activated.');
 });

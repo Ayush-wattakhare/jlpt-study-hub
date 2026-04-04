@@ -508,5 +508,18 @@ body{font-family:var(--font-body);background:var(--surface);color:var(--ink);min
   background: rgba(0,0,0,0.3) !important;
   color: #fff;
 }
+.auth-card .btn-secondary {
+  background: transparent !important;
+  border-color: var(--ink) !important;
+  color: var(--ink) !important;
+  font-weight: 500;
+}
+.auth-card .btn-secondary:hover {
+  background: rgba(0,0,0,0.05) !important;
+}
+[data-theme='dark'] .auth-card .btn-secondary:hover {
+  background: rgba(255,255,255,0.05) !important;
+}
+
 
 
