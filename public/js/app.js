@@ -123,6 +123,7 @@ async function init(){
   }
   applyTheme();
   updateLevelUI();
+  checkStreak();
   renderDashboard();
   renderStudyTimer();
   if(!document.querySelector('.mob-nav'))initMobileNav();
@@ -840,16 +841,42 @@ function gainXP(amount){
 function markActivity(){
   const now=new Date();
   const key=`${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`;
-  S.activityLog[key]=true;
-  const yDate=new Date(now);yDate.setDate(yDate.getDate()-1);
+  const yDate=new Date(now); yDate.setDate(yDate.getDate()-1);
   const yKey=`${yDate.getFullYear()}-${yDate.getMonth()+1}-${yDate.getDate()}`;
-  if(!S.lastStudied)S.streak=1;
-  else if(S.lastStudied===yKey)S.streak++;
-  else if(S.lastStudied!==key)S.streak=1;
-  S.lastStudied=key;
   
-  const streakEl=document.getElementById('sideStreak'); if(streakEl)streakEl.textContent=S.streak;
-  const snEl=document.getElementById('streakNum'); if(snEl)snEl.textContent=S.streak;
+  if (S.lastStudied === key) return; // Already marked today
+  
+  if (!S.lastStudied) {
+    S.streak = 1;
+  } else if (S.lastStudied === yKey) {
+    S.streak++;
+  } else {
+    S.streak = 1;
+  }
+  
+  S.lastStudied = key;
+  S.activityLog[key] = true;
+  
+  if(document.getElementById('sideStreak')) document.getElementById('sideStreak').textContent = S.streak;
+  if(document.getElementById('streakNum')) document.getElementById('streakNum').textContent = S.streak;
+  
+  api('PATCH', '/api/state', { streak: S.streak, lastStudied: S.lastStudied, activityLog: S.activityLog });
+}
+
+function checkStreak(){
+  if (!S.lastStudied) return;
+  const now = new Date();
+  const key = `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`;
+  const yDate = new Date(now); yDate.setDate(yDate.getDate()-1);
+  const yKey = `${yDate.getFullYear()}-${yDate.getMonth()+1}-${yDate.getDate()}`;
+  
+  // If last studied was before yesterday, streak is lost (unless we studied today)
+  if (S.lastStudied !== key && S.lastStudied !== yKey) {
+    S.streak = 0;
+    api('PATCH', '/api/state', { streak: 0 });
+  }
+  
+  if(document.getElementById('streakNum')) document.getElementById('streakNum').textContent = S.streak;
 }
 
 // ── TOAST ──
