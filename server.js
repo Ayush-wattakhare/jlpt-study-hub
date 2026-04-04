@@ -7,30 +7,17 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ── Supabase Setup with Auth ──
+// ── Supabase Setup ──
 const isPlaceholder = !process.env.SUPABASE_URL || process.env.SUPABASE_URL.includes('your-project') || process.env.SUPABASE_URL.includes('placeholder');
 let supabase = null;
-let usersDB = {}; // Fallback in-memory DB
+let usersDB = {}; // Local Fallback
 
 if (!isPlaceholder) {
   try {
     supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
-    console.log('✅ Supabase client initialized');
+    console.log('✅ Supabase database connected');
   } catch (e) {
     console.warn('⚠️ Supabase init failed:', e.message);
-  }
-}
-
-// ── Twilio setup (optional) ──
-let twilioClient = null;
-if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN &&
-    process.env.TWILIO_ACCOUNT_SID.startsWith('AC')) {
-  try {
-    const twilio = require('twilio');
-    twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-    console.log('✅ Twilio SMS client initialized');
-  } catch (e) {
-    console.warn('⚠️ Twilio init failed:', e.message);
   }
 }
 
@@ -51,146 +38,135 @@ const defaultState = {
   nextReminderId: 3,
 };
 
-async function getProfile(req) {
-  const email = req.headers['x-user-email'];
-  if (!email || email === 'guest') return JSON.parse(JSON.stringify(defaultState));
-  
+// ── Database Layer (Profiles Table) ──
+async function dbGet(id) {
   if (supabase) {
-    try {
-      const { data, error } = await supabase.from('profiles').select('state').eq('email', email).single();
-      if (data) return data.state;
-      // If profile not found, maybe initialize it
-      if (error && error.code === 'PGRST116') {
-        await supabase.from('profiles').insert({ email, state: defaultState });
-        return defaultState;
-      }
-    } catch (e) { console.error('DB fetch error:', e); }
+    const { data } = await supabase.from('profiles').select('*').eq('email', id).single();
+    if (data) return data;
   }
-  
-  if (usersDB[email]) return usersDB[email].state;
-  return JSON.parse(JSON.stringify(defaultState));
+  return usersDB[id];
 }
 
-async function updateProfile(req, updates) {
-  const email = req.headers['x-user-email'];
-  if (!email || email === 'guest') return;
-  
-  const state = await getProfile(req);
-  Object.keys(updates).forEach(k => {
-    if (updates[k] !== undefined) state[k] = updates[k];
-  });
-  
+async function dbSave(id, data) {
   if (supabase) {
-    try {
-      await supabase.from('profiles').upsert({ email, state });
-    } catch (e) { console.error('DB save error:', e); }
+    await supabase.from('profiles').upsert({ email: id, ...data });
   }
-  
-  if (!usersDB[email]) usersDB[email] = { password: '', state };
-  usersDB[email].state = state;
+  usersDB[id] = { ...data };
 }
 
 // ══════════════════════════════════════════
-//  AUTH ROUTES (Now with Real Supabase Auth)
+//  AUTH ROUTES (SIMPLE USERNAME/PASSWORD)
 // ══════════════════════════════════════════
 
 // POST Register
 app.post('/api/auth/register', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.json({ success: false, error: 'Missing email or password' });
+  const { email: id, password } = req.body;
+  if (!id || !password) return res.json({ success: false, error: 'Missing username or password' });
   
-  if (supabase) {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) return res.json({ success: false, error: error.message });
-    
-    // Initialize profile
-    await supabase.from('profiles').upsert({ email, state: defaultState });
-    return res.json({ success: true, user: data.user });
-  }
+  const existing = await dbGet(id);
+  if (existing) return res.json({ success: false, error: 'User already exists' });
   
-  // Fallback mode
-  if (usersDB[email]) return res.json({ success: false, error: 'Already registered locally' });
-  usersDB[email] = { password, state: JSON.parse(JSON.stringify(defaultState)) };
+  await dbSave(id, { password, state: defaultState });
   res.json({ success: true });
 });
 
 // POST Login
 app.post('/api/auth/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { email: id, password } = req.body;
+  const user = await dbGet(id);
   
-  if (supabase) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return res.json({ success: false, error: error.message });
-    return res.json({ success: true, user: data.user });
-  }
-
-  // Fallback mode
-  if (usersDB[email] && usersDB[email].password === password) return res.json({ success: true });
-  res.json({ success: false, error: 'Invalid credentials or account not found' });
+  if (!user) return res.json({ success: false, error: 'User not found' });
+  if (user.password !== password) return res.json({ success: false, error: 'Incorrect password' });
+  
+  res.json({ success: true });
 });
 
-// GET full state
-app.get('/api/state', async (req, res) => res.json({ success: true, data: await getProfile(req) }));
+// ── STATE API ──
+app.get('/api/state', async (req, res) => {
+  const id = req.headers['x-user-email'];
+  if (!id || id === 'guest') return res.json({ success: true, data: defaultState });
+  
+  const user = await dbGet(id);
+  res.json({ success: true, data: user ? user.state : defaultState });
+});
 
-// PATCH partial state update
 app.patch('/api/state', async (req, res) => {
-  await updateProfile(req, req.body);
+  const id = req.headers['x-user-email'];
+  if (!id || id === 'guest') return res.json({ success: true });
+  
+  const user = await dbGet(id);
+  const state = user ? user.state : JSON.parse(JSON.stringify(defaultState));
+  
+  Object.keys(req.body).forEach(k => {
+    if (req.body[k] !== undefined) state[k] = req.body[k];
+  });
+  
+  await dbSave(id, { password: user ? user.password : '', state });
   res.json({ success: true });
 });
 
-// POST reset state completely
 app.post('/api/state/reset', async (req, res) => {
-  const email = req.headers['x-user-email'];
-  if (email && email !== 'guest') {
-    if (supabase) await supabase.from('profiles').upsert({ email, state: defaultState });
-    if (usersDB[email]) usersDB[email].state = JSON.parse(JSON.stringify(defaultState));
+  const id = req.headers['x-user-email'];
+  if (id && id !== 'guest') {
+    const user = await dbGet(id);
+    await dbSave(id, { password: user ? user.password : '', state: defaultState });
   }
   res.json({ success: true });
 });
 
-// POST add XP
+// XP & Study Time
 app.post('/api/xp', async (req, res) => {
-  const st = await getProfile(req);
-  st.xp = (st.xp || 0) + (Number(req.body.amount) || 0);
-  await updateProfile(req, { xp: st.xp });
-  res.json({ success: true, xp: st.xp });
+  const id = req.headers['x-user-email'];
+  const user = await dbGet(id);
+  if (!user) return res.json({ success: false });
+  user.state.xp = (user.state.xp || 0) + (Number(req.body.amount) || 0);
+  await dbSave(id, user);
+  res.json({ success: true, xp: user.state.xp });
 });
 
 app.post('/api/study-time', async (req, res) => {
-  const st = await getProfile(req);
-  st.studyTimeSeconds = (st.studyTimeSeconds || 0) + (Number(req.body.seconds) || 0);
-  await updateProfile(req, { studyTimeSeconds: st.studyTimeSeconds });
-  res.json({ success: true, studyTimeSeconds: st.studyTimeSeconds });
+  const id = req.headers['x-user-email'];
+  const user = await dbGet(id);
+  if (!user) return res.json({ success: false });
+  user.state.studyTimeSeconds = (user.state.studyTimeSeconds || 0) + (Number(req.body.seconds) || 0);
+  await dbSave(id, user);
+  res.json({ success: true, studyTimeSeconds: user.state.studyTimeSeconds });
 });
 
 app.post('/api/test-result', async (req, res) => {
-  const st = await getProfile(req);
+  const id = req.headers['x-user-email'];
+  const user = await dbGet(id);
+  if (!user) return res.json({ success: false });
+  
   const result = { ...req.body, timestamp: new Date().toISOString() };
-  if (!st.testResults) st.testResults = [];
-  st.testResults.unshift(result);
-  if (st.testResults.length > 30) st.testResults = st.testResults.slice(0, 30);
+  if (!user.state.testResults) user.state.testResults = [];
+  user.state.testResults.unshift(result);
+  if (user.state.testResults.length > 30) user.state.testResults = user.state.testResults.slice(0, 30);
   
   if (result.weakAreas) {
-    if (!st.weakAreas) st.weakAreas = {};
-    result.weakAreas.forEach(area => { st.weakAreas[area] = (st.weakAreas[area] || 0) + 1; });
+    if (!user.state.weakAreas) user.state.weakAreas = {};
+    result.weakAreas.forEach(area => { user.state.weakAreas[area] = (user.state.weakAreas[area] || 0) + 1; });
   }
-  st.xp = (st.xp || 0) + Math.round((result.score || 0) / 100 * 200 + 50);
-  await updateProfile(req, { testResults: st.testResults, weakAreas: st.weakAreas, xp: st.xp });
+  user.state.xp = (user.state.xp || 0) + Math.round((result.score || 0) / 100 * 200 + 50);
+  await dbSave(id, user);
   res.json({ success: true });
 });
 
 // Reminders
 app.get('/api/reminders', async (req, res) => {
-  const st = await getProfile(req);
-  res.json({ success: true, reminders: st.reminders || [], phoneNumber: st.phoneNumber });
+  const id = req.headers['x-user-email'];
+  const user = await dbGet(id);
+  if (!user) return res.json({ success: true, reminders: defaultState.reminders });
+  res.json({ success: true, reminders: user.state.reminders || [], phoneNumber: user.state.phoneNumber });
 });
 
 app.post('/api/reminders', async (req, res) => {
-  const st = await getProfile(req);
-  if (!st.reminders) st.reminders = [];
-  const rem = { id: st.nextReminderId++, time: req.body.time, label: req.body.label, enabled: true };
-  st.reminders.push(rem);
-  await updateProfile(req, { reminders: st.reminders });
+  const id = req.headers['x-user-email'];
+  const user = await dbGet(id);
+  if (!user) return res.json({ success: false });
+  const rem = { id: user.state.nextReminderId++, time: req.body.time, label: req.body.label, enabled: true };
+  user.state.reminders.push(rem);
+  await dbSave(id, user);
   res.json({ success: true, reminder: rem });
 });
 
@@ -199,6 +175,6 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 
 app.listen(PORT, () => {
   console.log(`\n🎌 JLPT Study Hub → http://localhost:${PORT}`);
-  if (isPlaceholder) console.log('💡 Note: Supabase is NOT configured. Using Local In-Memory Mode.');
-  else console.log('✅ Real Supabase Auth Activated.');
+  if (isPlaceholder) console.log('💡 Note: Supabase not configured. Using Local Storage.');
+  else console.log('✅ Simple Username/Password Authentication Active (Profiles DB Mode)');
 });

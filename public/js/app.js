@@ -151,6 +151,9 @@ function updateLevelUI(){
 function renderDashboard(){
   const now=new Date();
   document.getElementById('dashDate').textContent=now.toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const greetingEl = document.getElementById('dashGreeting');
+  const displayName = currentUser ? currentUser.split('@')[0] : 'Guest';
+  if(greetingEl) greetingEl.textContent = displayName + '!';
 
   const vocab=VOCAB[S.level]||[];
   const grammar=GRAMMAR[S.level]||[];
@@ -958,11 +961,34 @@ function renderChecklist(){
 }
 
 async function toggleCheckItem(key,pts){
+  const wasDone = S.progress[key];
   S.progress[key]=!S.progress[key];
-  if(S.progress[key])gainXP(pts);
+  if(!wasDone) gainXP(pts);
+  
+  // Check for phase bonus
+  const n5Phases = [
+    {num:0, keys:['cl-N5-w1','cl-N5-w2','cl-N5-w3','cl-N5-w4']},
+    {num:1, keys:['cl-N5-v1','cl-N5-v2','cl-N5-v3','cl-N5-v4','cl-N5-v5']},
+    {num:2, keys:['cl-N5-g1','cl-N5-g2','cl-N5-g3','cl-N5-g4']},
+    {num:3, keys:['cl-N5-k1','cl-N5-k2','cl-N5-k3']}
+  ];
+  const n4Phases = [
+    {num:1, keys:['cl-N4-v1','cl-N4-v2']},
+    {num:2, keys:['cl-N4-g1','cl-N4-g2','cl-N4-g3']},
+    {num:3, keys:['cl-N4-k1','cl-N4-k2']}
+  ];
+  const phases = S.level === 'N5' ? n5Phases : n4Phases;
+  const currentPhase = phases.find(ph => ph.keys.includes(key));
+  
+  if (currentPhase && currentPhase.keys.every(k => S.progress[k]) && !wasDone) {
+    gainXP(10);
+    toast(`🌟 +10 for complete the phase!`, 'success');
+  }
+
   markActivity();
   await api('PATCH','/api/state',{progress:S.progress,xp:S.xp,lastStudied:S.lastStudied,activityLog:S.activityLog});
   renderTracker();
+  if(document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
 }
 
 function showResetConfirm(){
