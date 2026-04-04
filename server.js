@@ -41,15 +41,28 @@ const defaultState = {
 // ── Database Layer (Profiles Table) ──
 async function dbGet(id) {
   if (supabase) {
-    const { data } = await supabase.from('profiles').select('*').eq('email', id).single();
-    if (data) return data;
+    try {
+      const { data, error } = await supabase.from('profiles').select('*').eq('email', id).single();
+      if (error) {
+        if (error.code !== 'PGRST116') console.warn('Supabase Fetch Error:', error.message);
+      }
+      if (data) return data;
+    } catch (e) {
+      console.error('Supabase unexpected error:', e.message);
+    }
   }
   return usersDB[id];
 }
 
 async function dbSave(id, data) {
   if (supabase) {
-    await supabase.from('profiles').upsert({ email: id, ...data });
+    try {
+      const { error } = await supabase.from('profiles').upsert({ email: id, ...data });
+      if (error) console.error('Supabase Save Error (Check if RLS is disabled!):', error.message);
+      else console.log(`✅ Saved state for user: ${id}`);
+    } catch (e) {
+      console.error('Supabase Save Exception:', e.message);
+    }
   }
   usersDB[id] = { ...data };
 }

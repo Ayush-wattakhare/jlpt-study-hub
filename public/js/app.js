@@ -93,7 +93,7 @@ async function init(){
     S.lastStudied=d.lastStudied||null; S.studyTimeSeconds=d.studyTimeSeconds||0;
     S.completedLessons=d.completedLessons||[]; S.testResults=d.testResults||[];
     S.progress=d.progress||{}; S.achievements=d.achievements||[];
-    S.weakAreas=d.weakAreas||{}; S.activityLog=d.activityLog||[];
+    S.weakAreas=d.weakAreas||{}; S.activityLog=d.activityLog||{};
     if(d.settings)S.settings=d.settings;
     reminders=d.reminders||[];
     if(S.progress.learnedKanji)S.learnedKanji=S.progress.learnedKanji;
