@@ -326,8 +326,10 @@ function buildCal(){
   for(let i=0;i<dow;i++)html+='<div class="cal-cell"></div>';
   for(let d=1;d<=days;d++){
     const key=`${today.getFullYear()}-${today.getMonth()+1}-${d}`;
-    const cls=d===today.getDate()?'today':S.activityLog[key]?'done':'';
-    html+=`<div class="cal-cell ${cls}">${d}</div>`;
+    let cls = '';
+    if(S.activityLog[key]) cls += ' done';
+    if(d===today.getDate()) cls += ' today';
+    html+=`<div class="cal-cell${cls}">${d}</div>`;
   }
   cal.innerHTML=html;
 }
@@ -882,7 +884,7 @@ async function timerReset(){
 
 // ── XP & ACTIVITY ──
 function gainXP(amount){
-  S.xp+=amount;
+  S.xp = Math.max(0, S.xp + amount);
   const xpEl=document.getElementById('sideXP'); if(xpEl)xpEl.textContent=S.xp;
   const xpFill=document.getElementById('xpFill'); if(xpFill)xpFill.style.width=Math.min(100,(S.xp%500)/5)+'%';
   const sfFlash=document.getElementById('statFlash'); if(sfFlash)sfFlash.textContent=S.xp;
@@ -1064,8 +1066,16 @@ function renderChecklist(){
 async function toggleCheckItem(key,pts){
   const wasDone = S.progress[key];
   S.progress[key]=!S.progress[key];
-  if(!wasDone) gainXP(pts);
+  if(!wasDone) {
+    gainXP(pts);
+  } else {
+    gainXP(-pts);
+  }
   
+  // UPDATE UI IMMEDIATELY (Smooth experience)
+  renderTracker();
+  if(document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+
   // Check for phase bonus
   const n5Phases = [
     {num:0, keys:['cl-N5-w1','cl-N5-w2','cl-N5-w3','cl-N5-w4']},
@@ -1081,15 +1091,22 @@ async function toggleCheckItem(key,pts){
   const phases = S.level === 'N5' ? n5Phases : n4Phases;
   const currentPhase = phases.find(ph => ph.keys.includes(key));
   
-  if (currentPhase && currentPhase.keys.every(k => S.progress[k]) && !wasDone) {
-    gainXP(10);
-    toast(`🌟 +10 for complete the phase!`, 'success');
+  if (currentPhase) {
+    const isNowComplete = currentPhase.keys.every(k => S.progress[k]);
+    if (isNowComplete && !wasDone) {
+      gainXP(10);
+      toast(`🌟 +10 for completing the phase!`, 'success');
+    } else if (wasDone) {
+      const wasPhaseComplete = currentPhase.keys.filter(k => k !== key).every(k => S.progress[k]);
+      if (wasPhaseComplete) {
+        gainXP(-10);
+      }
+    }
   }
 
   markActivity();
-  await api('PATCH','/api/state',{progress:S.progress,xp:S.xp,lastStudied:S.lastStudied,activityLog:S.activityLog});
-  renderTracker();
-  if(document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+  // SYNC IN BACKGROUND (Don't await it for the UI)
+  api('PATCH','/api/state',{progress:S.progress,xp:S.xp,lastStudied:S.lastStudied,activityLog:S.activityLog});
 }
 
 function showResetConfirm(){

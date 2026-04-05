@@ -1,0 +1,21 @@
+{
+  "name": "JLPT Study Hub",
+  "short_name": "JLPT Hub",
+  "description": "Master JLPT N5 and N4 with JLPT Study Hub.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fafaf8",
+  "theme_color": "#1a1a2e",
+  "icons": [
+    {
+      "src": "/img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

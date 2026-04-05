@@ -16,6 +16,11 @@ const HIRAGANA=[
   {group:'Dakuten D',chars:[{jp:'だ',r:'da'},{jp:'ぢ',r:'di'},{jp:'づ',r:'du'},{jp:'で',r:'de'},{jp:'ど',r:'do'}]},
   {group:'Dakuten B',chars:[{jp:'ば',r:'ba'},{jp:'び',r:'bi'},{jp:'ぶ',r:'bu'},{jp:'べ',r:'be'},{jp:'ぼ',r:'bo'}]},
   {group:'Handakuten P',chars:[{jp:'ぱ',r:'pa'},{jp:'ぴ',r:'pi'},{jp:'ぷ',r:'pu'},{jp:'ぺ',r:'pe'},{jp:'ぽ',r:'po'}]},
+  {group:'Combo K/S',chars:[{jp:'きゃ',r:'kya'},{jp:'きゅ',r:'kyu'},{jp:'きょ',r:'kyo'},{jp:'しゃ',r:'sha'},{jp:'しゅ',r:'shu'},{jp:'しょ',r:'sho'}]},
+  {group:'Combo T/N',chars:[{jp:'ちゃ',r:'cha'},{jp:'ちゅ',r:'chu'},{jp:'ちょ',r:'cho'},{jp:'にゃ',r:'nya'},{jp:'にゅ',r:'nyu'},{jp:'にょ',r:'nyo'}]},
+  {group:'Combo H/M',chars:[{jp:'ひゃ',r:'hya'},{jp:'ひゅ',r:'hyu'},{jp:'ひょ',r:'hyo'},{jp:'みゃ',r:'mya'},{jp:'みゅ',r:'myu'},{jp:'みょ',r:'myo'}]},
+  {group:'Combo R/G',chars:[{jp:'りゃ',r:'rya'},{jp:'りゅ',r:'ryu'},{jp:'りょ',r:'ryo'},{jp:'ぎゃ',r:'gya'},{jp:'ぎゅ',r:'gyu'},{jp:'ぎょ',r:'gyo'}]},
+  {group:'Combo Z/B/P',chars:[{jp:'じゃ',r:'ja'},{jp:'じゅ',r:'ju'},{jp:'じょ',r:'jo'},{jp:'びゃ',r:'bya'},{jp:'びゅ',r:'byu'},{jp:'びょ',r:'byo'},{jp:'ぴゃ',r:'pya'},{jp:'ぴゅ',r:'pyu'},{jp:'ぴょ',r:'pyo'}]}
 ];
 const KATAKANA=[
   {group:'Vowels',chars:[{jp:'ア',r:'a'},{jp:'イ',r:'i'},{jp:'ウ',r:'u'},{jp:'エ',r:'e'},{jp:'オ',r:'o'}]},
@@ -29,6 +34,16 @@ const KATAKANA=[
   {group:'R-row',chars:[{jp:'ラ',r:'ra'},{jp:'リ',r:'ri'},{jp:'ル',r:'ru'},{jp:'レ',r:'re'},{jp:'ロ',r:'ro'}]},
   {group:'W-row',chars:[{jp:'ワ',r:'wa'},{jp:'ヲ',r:'wo'}]},
   {group:'N',chars:[{jp:'ン',r:'n'}]},
+  {group:'Dakuten G',chars:[{jp:'ガ',r:'ga'},{jp:'ギ',r:'gi'},{jp:'グ',r:'gu'},{jp:'ゲ',r:'ge'},{jp:'ゴ',r:'go'}]},
+  {group:'Dakuten Z',chars:[{jp:'ザ',r:'za'},{jp:'ジ',r:'ji'},{jp:'ズ',r:'zu'},{jp:'ゼ',r:'ze'},{jp:'ゾ',r:'zo'}]},
+  {group:'Dakuten D',chars:[{jp:'ダ',r:'da'},{jp:'ヂ',r:'di'},{jp:'ヅ',r:'du'},{jp:'デ',r:'de'},{jp:'ド',r:'do'}]},
+  {group:'Dakuten B',chars:[{jp:'バ',r:'ba'},{jp:'ビ',r:'bi'},{jp:'ブ',r:'bu'},{jp:'ベ',r:'be'},{jp:'ボ',r:'bo'}]},
+  {group:'Handakuten P',chars:[{jp:'パ',r:'pa'},{jp:'ピ',r:'pi'},{jp:'プ',r:'pu'},{jp:'ペ',r:'pe'},{jp:'ポ',r:'po'}]},
+  {group:'Combo K/S',chars:[{jp:'キャ',r:'kya'},{jp:'キュ',r:'kyu'},{jp:'キョ',r:'kyo'},{jp:'シャ',r:'sha'},{jp:'シュ',r:'shu'},{jp:'ショ',r:'sho'}]},
+  {group:'Combo T/N',chars:[{jp:'チャ',r:'cha'},{jp:'チュ',r:'chu'},{jp:'チョ',r:'cho'},{jp:'ニャ',r:'nya'},{jp:'ニュ',r:'nyu'},{jp:'ニョ',r:'nyo'}]},
+  {group:'Combo H/M',chars:[{jp:'ヒャ',r:'hya'},{jp:'ヒュ',r:'hyu'},{jp:'ヒョ',r:'hyo'},{jp:'ミャ',r:'mya'},{jp:'ミュ',r:'myu'},{jp:'ミョ',r:'myo'}]},
+  {group:'Combo R/G',chars:[{jp:'リャ',r:'rya'},{jp:'リュ',r:'ryu'},{jp:'リョ',r:'ryo'},{jp:'ギャ',r:'gya'},{jp:'ギュ',r:'gyu'},{jp:'ギョ',r:'gyo'}]},
+  {group:'Combo Z/B/P',chars:[{jp:'ジャ',r:'ja'},{jp:'ジュ',r:'ju'},{jp:'ジョ',r:'jo'},{jp:'ビャ',r:'bya'},{jp:'ビュ',r:'byu'},{jp:'ビョ',r:'byo'},{jp:'ピャ',r:'pya'},{jp:'ピュ',r:'pyu'},{jp:'ピョ',r:'pyo'}]}
 ];
 
 // ── VOCABULARY ──
