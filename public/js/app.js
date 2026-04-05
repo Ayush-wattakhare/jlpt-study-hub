@@ -592,19 +592,32 @@ function checkKana(i){
 }
 function nextKana(){practiceState.idx++;practiceState.answered=false;renderKanaQ();}
 
+window._fcState = { pool: [], idx: 0, known: 0 };
+window._fcAction = function(action) {
+  if (action === 'know') {
+    window._fcState.known++;
+    gainXP(5);
+  }
+  window._fcState.idx++;
+  window._fcRender();
+};
+
 function renderFlashcard(){
   const data=VOCAB[S.level]||[];
-  const pool=shuffle(data);
-  let idx=0;let known=0;
-  const render=()=>{
-    if(idx>=pool.length){
-      document.getElementById('practice-area').innerHTML=`<div class="quiz-wrap"><div class="quiz-result-card"><div class="quiz-result-score" style="color:var(--teal)">${Math.round(known/pool.length*100)}%</div><div class="quiz-result-pct">${known}/${pool.length} known</div><button class="btn-primary" style="margin-top:16px" onclick="renderPractice('flashcard')">Again</button></div></div>`;
+  window._fcState.pool=shuffle(data);
+  window._fcState.idx=0;
+  window._fcState.known=0;
+  
+  window._fcRender=()=>{
+    const s = window._fcState;
+    if(s.idx>=s.pool.length){
+      document.getElementById('practice-area').innerHTML=`<div class="quiz-wrap"><div class="quiz-result-card"><div class="quiz-result-score" style="color:var(--teal)">${Math.round(s.known/s.pool.length*100)}%</div><div class="quiz-result-pct">${s.known}/${s.pool.length} known</div><button class="btn-primary" style="margin-top:16px" onclick="renderPractice('flashcard')">Again</button></div></div>`;
       return;
     }
-    const c=pool[idx];
+    const c=s.pool[s.idx];
     document.getElementById('practice-area').innerHTML=`
       <div class="flashcard-wrap">
-        <div style="text-align:center;font-size:13px;color:var(--text2);margin-bottom:12px">Card ${idx+1}/${pool.length} · Known: ${known}</div>
+        <div style="text-align:center;font-size:13px;color:var(--text2);margin-bottom:12px">Card ${s.idx+1}/${s.pool.length} · Known: ${s.known}</div>
         <div class="flashcard" id="fc" onclick="document.getElementById('fc').classList.toggle('flipped')">
           <div class="fc-inner">
             <div class="fc-front"><div style="font-size:52px;font-family:'Noto Sans JP',sans-serif">${c.jp}</div><div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:8px">tap to reveal</div></div>
@@ -612,14 +625,13 @@ function renderFlashcard(){
           </div>
         </div>
         <div style="display:flex;gap:10px;justify-content:center;margin-top:4px">
-          <button class="btn-secondary" onclick="idx++;render()">Skip</button>
-          <button style="padding:11px 24px;border-radius:999px;background:rgba(233,69,96,.15);color:var(--accent);border:1px solid rgba(233,69,96,.3);cursor:pointer" onclick="idx++; render()">Again</button>
-          <button class="btn-primary" onclick="known++;gainXP(5);idx++;render()">Know it ✓</button>
+          <button class="btn-secondary" onclick="window._fcAction('skip')">Skip</button>
+          <button style="padding:11px 24px;border-radius:999px;background:rgba(233,69,96,.15);color:var(--accent);border:1px solid rgba(233,69,96,.3);cursor:pointer" onclick="window._fcAction('again')">Again</button>
+          <button class="btn-primary" onclick="window._fcAction('know')">Know it ✓</button>
         </div>
       </div>`;
   };
-  // need to expose render to outer scope
-  window._fcRender=render;render();
+  window._fcRender();
 }
 
 // ── TEST SETS ──
