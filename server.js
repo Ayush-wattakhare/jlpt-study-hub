@@ -199,3 +199,5 @@ app.listen(PORT, () => {
   console.log(`\n🎌 JLPT Study Hub → http://localhost:${PORT}`);
   console.log('✅ JWT Authentication Middleware active');
 });
+
+module.exports = app;

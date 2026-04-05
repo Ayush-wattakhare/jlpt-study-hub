@@ -1152,12 +1152,25 @@ function renderResource(){
   if(!container) return;
   
   const base = 'https://drive.google.com/drive/folders/';
+  const lv = S.level || 'N5';
+  
+  // Specific folder IDs based on level
+  const levelFolders = {
+    'N5': '1BxdZFe0KMYffkSleqKHHWq3xZcH8FoBo',
+    'N4': '1fCRrECk_LJeh8EFId91zozWG1qmJC1zK',
+    'N3': '19OGnwgJVvXu-D0LocJAU7dGXmEShcUY5',
+    'N2': '18VRgqSrS-DdMzl2ndb62ANfGekklc-Vs',
+    'N1': '1E9pr3Rb03HHlBm247iVYeEe9CjehjVGM'
+  };
+
   const resources = [
     {
-      title: 'JLPT N5 Essentials',
-      desc: 'Genki textbooks, Minna no Nihongo, and the complete N5 Kanji guide.',
+      title: `${lv} Essentials`,
+      desc: lv === 'N5' 
+        ? 'Genki textbooks, Minna no Nihongo, and the complete N5 Kanji guide.' 
+        : `Comprehensive ${lv} textbooks, advanced grammar guides, and level-specific PDFs.`,
       icon: '📗',
-      link: base + '1BxdZFe0KMYffkSleqKHHWq3xZcH8FoBo'
+      link: base + (levelFolders[lv] || levelFolders['N5'])
     },
     {
       title: 'Kanji & Mnemonics',
@@ -1167,15 +1180,15 @@ function renderResource(){
     },
     {
       title: 'Previous Year Papers',
-      desc: 'Actual JLPT question papers from previous years for realistic practice.',
+      desc: `Actual JLPT ${lv} question papers from previous years for realistic practice.`,
       icon: '📄',
       link: base + '1wn99JIk_JPtoLCVmrKvJh6xpnUC5zNMQ'
     },
     {
-      title: 'Higher Levels (N4-N1)',
-      desc: 'Planning for the future? Access study materials for all advanced JLPT levels.',
+      title: 'Other Levels',
+      desc: 'Browse materials for other JLPT levels to plan your future studies.',
       icon: '🚀',
-      link: 'https://drive.google.com/drive/folders/1ADNQA100A9kuAJbq7ooOpziFqHSh1S_O' // Main link for all levels
+      link: 'https://drive.google.com/drive/folders/1ADNQA100A9kuAJbq7ooOpziFqHSh1S_O'
     }
   ];
 
