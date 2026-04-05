@@ -1,7 +1,7 @@
 // ── STATE ──
 let S = {
   level:'N5', xp:0, streak:0, lastStudied:null, studyTimeSeconds:0,
-  completedLessons:[], testResults:[], progress:{}, achievements:[],
+  completedLessons:[], testResults:[], progress:{}, achievements:[], xpHistory:[],
   weakAreas:{}, activityLog:{}, settings:{theme:'light'},
   timerRunning:false, timerSeconds:0, timerInterval:null, lastSyncedSeconds: 0,
   currentQuiz:null, currentExam:null, examTimer:null,
@@ -596,7 +596,7 @@ window._fcState = { pool: [], idx: 0, known: 0 };
 window._fcAction = function(action) {
   if (action === 'know') {
     window._fcState.known++;
-    gainXP(5);
+    gainXP(5, 'Flashcard: ' + window._fcState.pool[window._fcState.idx].jp);
   }
   window._fcState.idx++;
   window._fcRender();
@@ -895,12 +895,45 @@ async function timerReset(){
 }
 
 // ── XP & ACTIVITY ──
-function gainXP(amount){
+function gainXP(amount, reason="Practice"){
+  if (!S.xpHistory) S.xpHistory = [];
   S.xp = Math.max(0, S.xp + amount);
+  if (amount !== 0) {
+    S.xpHistory.unshift({ date: new Date().toISOString(), amount, reason: amount > 0 ? reason : "Reverted " + reason });
+    if (S.xpHistory.length > 50) S.xpHistory = S.xpHistory.slice(0, 50);
+  }
   const xpEl=document.getElementById('sideXP'); if(xpEl)xpEl.textContent=S.xp;
   const xpFill=document.getElementById('xpFill'); if(xpFill)xpFill.style.width=Math.min(100,(S.xp%500)/5)+'%';
   const sfFlash=document.getElementById('statFlash'); if(sfFlash)sfFlash.textContent=S.xp;
-  api('PATCH','/api/state',{xp:S.xp});
+  api('PATCH','/api/state',{xp:S.xp, xpHistory:S.xpHistory});
+}
+function showXPHistory() {
+  const modal = document.getElementById('xpModal');
+  if (modal) modal.style.display = 'flex';
+  const list = document.getElementById('xpHistoryList');
+  if (!list) return;
+  if (!S.xpHistory || S.xpHistory.length === 0) {
+    list.innerHTML = '<p style="color:var(--text2)">No XP earned yet. Start studying!</p>';
+    return;
+  }
+  list.innerHTML = S.xpHistory.map(entry => {
+    const d = new Date(entry.date);
+    const time = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+    const dateStr = d.toLocaleDateString();
+    const sign = entry.amount > 0 ? '+' : '';
+    const color = entry.amount > 0 ? 'var(--teal)' : 'var(--red)';
+    return `<div style="display:flex; justify-content:space-between; padding: 12px 0; border-bottom: 1px solid var(--border);">
+      <div>
+        <div style="font-weight:600">${entry.reason}</div>
+        <div style="font-size:12px; color:var(--text2)">${dateStr} at ${time}</div>
+      </div>
+      <div style="font-weight:700; color:${color}">${sign}${entry.amount} XP</div>
+    </div>`;
+  }).join('');
+}
+function closeXPHistory() {
+  const modal = document.getElementById('xpModal');
+  if (modal) modal.style.display = 'none';
 }
 function markActivity(){
   const now=new Date();
@@ -1079,9 +1112,9 @@ async function toggleCheckItem(key,pts){
   const wasDone = S.progress[key];
   S.progress[key]=!S.progress[key];
   if(!wasDone) {
-    gainXP(pts);
+    gainXP(pts, `Task: ${label}`);
   } else {
-    gainXP(-pts);
+    gainXP(-pts, `Task: ${label}`);
   }
   
   // UPDATE UI IMMEDIATELY (Smooth experience)

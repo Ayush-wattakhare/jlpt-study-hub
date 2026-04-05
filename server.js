@@ -29,7 +29,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ── Default user state ──
 const defaultState = {
   level: 'N5', xp: 0, streak: 0, lastStudied: null, studyTimeSeconds: 0,
-  completedLessons: [], testResults: [], progress: {}, achievements: [],
+  completedLessons: [], testResults: [], progress: {}, achievements: [], xpHistory: [],
   weakAreas: {}, activityLog: {}, settings: { dailyGoalMinutes: 30, theme: 'light' },
   phoneNumber: '', learnedKanji: {},
   reminders: [

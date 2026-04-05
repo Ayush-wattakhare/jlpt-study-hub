@@ -130,7 +130,7 @@
       <div class="stat-label">Kanji learned</div>
       <div class="stat-bar"><div class="stat-bar-fill" id="sfKanji" style="background:var(--gold);width:0%"></div></div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card" onclick="showXPHistory()" style="cursor:pointer" title="Click to view XP history">
       <div class="stat-num" style="color:var(--red)" id="statFlash">0</div>
       <div class="stat-label">XP earned</div>
       <div class="stat-bar"><div class="stat-bar-fill" id="sfFlash" style="background:var(--red);width:0%"></div></div>
@@ -369,6 +369,14 @@
 <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
   <div class="modal-box" onclick="event.stopPropagation()" id="modalBox"></div>
 </div>
+
+  <div class="auth-layer" id="xpModal" style="display:none; z-index: 1000;">
+    <div class="auth-box" style="max-height: 80vh; overflow-y: auto;">
+      <button style="float:right;background:none;border:none;font-size:24px;cursor:pointer;color:var(--text)" onclick="closeXPHistory()">&times;</button>
+      <h2 style="font-family:'Outfit',sans-serif;font-weight:700;">XP History Log</h2>
+      <div id="xpHistoryList" style="margin-top: 16px; text-align: left;"></div>
+    </div>
+  </div>
 
 <script src="/js/data.js"></script>
 <script src="/js/data-extra.js"></script>
