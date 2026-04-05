@@ -370,11 +370,11 @@
   <div class="modal-box" onclick="event.stopPropagation()" id="modalBox"></div>
 </div>
 
-  <div class="auth-layer" id="xpModal" style="display:none; z-index: 1000;">
-    <div class="auth-box" style="max-height: 80vh; overflow-y: auto;">
-      <button style="float:right;background:none;border:none;font-size:24px;cursor:pointer;color:var(--text)" onclick="closeXPHistory()">&times;</button>
-      <h2 style="font-family:'Outfit',sans-serif;font-weight:700;">XP History Log</h2>
-      <div id="xpHistoryList" style="margin-top: 16px; text-align: left;"></div>
+  <div id="xpModal" style="position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(3px);">
+    <div style="border-radius:var(--radius);box-shadow:var(--shadow-lg);width:90%;max-width:400px;max-height:80vh;overflow-y:auto;background:var(--card);padding:24px;position:relative;">
+      <button style="position:absolute;top:20px;right:20px;background:none;border:none;font-size:24px;cursor:pointer;color:var(--ink)" onclick="closeXPHistory()">&times;</button>
+      <h2 style="font-family:'Outfit',sans-serif;font-weight:700;margin-bottom:20px;color:var(--ink);text-align:center;">XP History Log</h2>
+      <div id="xpHistoryList" style="text-align:left;"></div>
     </div>
   </div>
 
