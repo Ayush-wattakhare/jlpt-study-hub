@@ -43,17 +43,48 @@ async function dbGet(id) {
   if (supabase) {
     try {
       const { data, error } = await supabase.from('profiles').select('*').eq('email', id).single();
-      if (data) return data;
-    } catch (e) {}
+      if (error) {
+        if (error.code !== 'PGRST116') { // No rows found is not a critical error
+           console.error(`🔍 Supabase Fetch Error [${error.code}]:`, error.message);
+        }
+      }
+      if (data) {
+        // Fallback: If password column is missing in DB but exists in JSON state
+        if (!data.password && data.state && data.state._password) {
+            data.password = data.state._password;
+        }
+        return data;
+      }
+    } catch (e) { console.warn('Supabase fetch exception:', e.message); }
   }
   return usersDB[id];
 }
 
 async function dbSave(id, data) {
+  const saveObj = { email: id, ...data };
+  
+  // Extra layer: Keep password in state as backup in case column is missing
+  if (data.password && data.state) {
+      data.state._password = data.password;
+  }
+
   if (supabase) {
     try {
-      await supabase.from('profiles').upsert({ email: id, ...data });
-    } catch (e) { console.error('DB save error:', e.message); }
+      const { error } = await supabase.from('profiles').upsert(saveObj);
+      if (error) {
+          console.error(`💾 Supabase Save Error [${error.code}]:`, error.message);
+          // If password column missing, try saving without it so progress is still saved
+          if (error.code === 'PGRST204' && error.message.includes('password')) {
+              console.warn('⚠️ Retrying save without password column...');
+              const backupObj = { email: id, state: data.state };
+              const { error: err2 } = await supabase.from('profiles').upsert(backupObj);
+              if (err2) console.error('💾 Final Save Error:', err2.message);
+              else console.log('✅ Progress saved (password stored in state JSON).');
+          }
+      } else {
+          console.log(`✅ Data synced to Supabase for ${id}`);
+      }
+    } catch (e) { console.error('DB save exception:', e.message); }
   }
   usersDB[id] = { ...data };
 }

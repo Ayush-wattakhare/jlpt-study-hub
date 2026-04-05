@@ -3,7 +3,7 @@ let S = {
   level:'N5', xp:0, streak:0, lastStudied:null, studyTimeSeconds:0,
   completedLessons:[], testResults:[], progress:{}, achievements:[],
   weakAreas:{}, activityLog:{}, settings:{theme:'light'},
-  timerRunning:false, timerSeconds:0, timerInterval:null,
+  timerRunning:false, timerSeconds:0, timerInterval:null, lastSyncedSeconds: 0,
   currentQuiz:null, currentExam:null, examTimer:null,
   learnedKanji:{},
 };
@@ -151,6 +151,7 @@ function goto(page,btn){
   else if(page==='exam')renderExamLobby();
   else if(page==='tracker')renderTracker();
   else if(page==='reminders')renderReminders();
+  else if(page==='resource')renderResource();
 }
 
 // ── LEVEL ──
@@ -811,23 +812,57 @@ function renderStudyTimer(){
   const h=Math.floor(S.timerSeconds/3600);
   const m=Math.floor((S.timerSeconds%3600)/60);
   const s=S.timerSeconds%60;
-  document.getElementById('ftTime').textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-  document.getElementById('ftBtn').textContent=S.timerRunning?'⏸':'▶';
+  const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  const timeEl = document.getElementById('ftTime');
+  if (timeEl) timeEl.textContent = timeStr;
+  
+  const btnEl = document.getElementById('ftBtn');
+  if (btnEl) btnEl.textContent = S.timerRunning ? '⏸' : '▶';
 }
+
 function timerToggle(){
   if(S.timerRunning){
-    clearInterval(S.timerInterval);S.timerInterval=null;S.timerRunning=false;
-    api('POST','/api/study-time',{seconds:S.timerSeconds});
-    S.studyTimeSeconds+=S.timerSeconds;S.timerSeconds=0;
-  }else{
-    S.timerRunning=true;
-    S.timerInterval=setInterval(()=>{S.timerSeconds++;renderStudyTimer();},1000);
+    // PAUSE
+    clearInterval(S.timerInterval);
+    S.timerInterval = null;
+    S.timerRunning = false;
+    
+    // Sync incremental time to server
+    const delta = S.timerSeconds - (S.lastSyncedSeconds || 0);
+    if (delta > 0) {
+        api('POST', '/api/study-time', { seconds: delta });
+        S.studyTimeSeconds += delta;
+        S.lastSyncedSeconds = S.timerSeconds;
+    }
+  } else {
+    // RESUME / START
+    S.timerRunning = true;
+    S.timerInterval = setInterval(() => {
+        S.timerSeconds++;
+        renderStudyTimer();
+    }, 1000);
   }
   renderStudyTimer();
 }
-function timerReset(){
-  clearInterval(S.timerInterval);S.timerInterval=null;S.timerRunning=false;
-  S.timerSeconds=0;renderStudyTimer();
+
+async function timerReset(){
+  // Stop if running
+  if (S.timerInterval) clearInterval(S.timerInterval);
+  S.timerInterval = null;
+  S.timerRunning = false;
+
+  // Sync remaining time before reset
+  const delta = S.timerSeconds - (S.lastSyncedSeconds || 0);
+  if (delta > 0) {
+      await api('POST', '/api/study-time', { seconds: delta });
+      S.studyTimeSeconds += delta;
+  }
+  
+  // Fully reset
+  S.timerSeconds = 0;
+  S.lastSyncedSeconds = 0;
+  renderStudyTimer();
+  toast('Timer reset');
 }
 
 // ── XP & ACTIVITY ──
@@ -895,8 +930,9 @@ function initMobileNav(){
       <button class="mob-nav-btn active" onclick="goto('dashboard',null);setMobActive(this)"><span>⊞</span><span>Home</span></button>
       <button class="mob-nav-btn" onclick="goto('learn',null);setMobActive(this)"><span>📖</span><span>Learn</span></button>
       <button class="mob-nav-btn" onclick="goto('practice',null);setMobActive(this)"><span>✏️</span><span>Practice</span></button>
-      <button class="mob-nav-btn" onclick="goto('test',null);setMobActive(this)"><span>📝</span><span>Tests</span></button>
-      <button class="mob-nav-btn" onclick="goto('exam',null);setMobActive(this)"><span>⏱</span><span>Exam</span></button>
+      <button class="mob-nav-btn" onclick="goto('tracker',null);setMobActive(this)"><span>📊</span><span>Tracker</span></button>
+      <button class="mob-nav-btn" onclick="goto('reminders',null);setMobActive(this)"><span>🔔</span><span>Notice</span></button>
+      <button class="mob-nav-btn" onclick="goto('resource',null);setMobActive(this)"><span>📂</span><span>Files</span></button>
     </nav>`);
 }
 function setMobActive(el){
@@ -1108,6 +1144,52 @@ function enableNotifs(){
   if(!('Notification' in window))alert('This browser does not support notifications.');
   else if(Notification.permission==='granted')toast('Notifications already active!');
   else Notification.requestPermission().then(p=>{if(p==='granted')toast('Notifications enabled! 🔔');});
+}
+
+// ── RESOURCE PAGE ──
+function renderResource(){
+  const container = document.getElementById('resourceContainer');
+  if(!container) return;
+  
+  const base = 'https://drive.google.com/drive/folders/';
+  const resources = [
+    {
+      title: 'JLPT N5 Essentials',
+      desc: 'Genki textbooks, Minna no Nihongo, and the complete N5 Kanji guide.',
+      icon: '📗',
+      link: base + '1BxdZFe0KMYffkSleqKHHWq3xZcH8FoBo'
+    },
+    {
+      title: 'Kanji & Mnemonics',
+      desc: 'Over 1000 Kanji mnemonics and the famous "Remembering the Kanji" series.',
+      icon: '✍️',
+      link: base + '1bB_yt4ceMaMy3whp7jeuWx2pYizZtsVA'
+    },
+    {
+      title: 'Previous Year Papers',
+      desc: 'Actual JLPT question papers from previous years for realistic practice.',
+      icon: '📄',
+      link: base + '1wn99JIk_JPtoLCVmrKvJh6xpnUC5zNMQ'
+    },
+    {
+      title: 'Higher Levels (N4-N1)',
+      desc: 'Planning for the future? Access study materials for all advanced JLPT levels.',
+      icon: '🚀',
+      link: 'https://drive.google.com/drive/folders/1ADNQA100A9kuAJbq7ooOpziFqHSh1S_O' // Main link for all levels
+    }
+  ];
+
+  container.innerHTML = resources.map(r => `
+    <a href="${r.link}" target="_blank" style="text-decoration:none;transition:transform 0.2s" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'" class="resource-card-link">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;height:100%;display:flex;flex-direction:column;box-shadow:var(--shadow-sm);position:relative;overflow:hidden">
+        <div style="font-size:32px;margin-bottom:16px">${r.icon}</div>
+        <h3 style="font-family:var(--font-display);font-size:18px;margin-bottom:8px;color:var(--ink)">${r.title}</h3>
+        <p style="color:var(--muted);font-size:13px;line-height:1.5;margin-bottom:16px;flex:1">${r.desc}</p>
+        <div style="color:var(--accent);font-size:13px;font-weight:600;display:flex;align-items:center;gap:4px">Browse Files <span>→</span></div>
+        <div style="position:absolute;top:-10px;right:-10px;font-size:60px;opacity:0.03;pointer-events:none">${r.icon}</div>
+      </div>
+    </a>
+  `).join('');
 }
 
 // ── START ──
