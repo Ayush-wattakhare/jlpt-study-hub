@@ -3,6 +3,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
@@ -49,10 +50,9 @@ async function dbGet(id) {
         }
       }
       if (data) {
-        // Fallback: If password column is missing in DB but exists in JSON state
-        if (!data.password && data.state && data.state._password) {
-            data.password = data.state._password;
-        }
+        // Fallback: If password/username columns are missing in DB but exist in JSON state
+        if (!data.password && data.state && data.state._password) data.password = data.state._password;
+        if (!data.username && data.state && data.state._username) data.username = data.state._username;
         return data;
       }
     } catch (e) { console.warn('Supabase fetch exception:', e.message); }
@@ -63,9 +63,10 @@ async function dbGet(id) {
 async function dbSave(id, data) {
   const saveObj = { email: id, ...data };
   
-  // Extra layer: Keep password in state as backup in case column is missing
-  if (data.password && data.state) {
-      data.state._password = data.password;
+  // Extra layer: Keep password/username in state as backup in case columns are missing
+  if (data.state) {
+      if (data.password) data.state._password = data.password;
+      if (data.username) data.state._username = data.username;
   }
 
   if (supabase) {
@@ -73,13 +74,14 @@ async function dbSave(id, data) {
       const { error } = await supabase.from('profiles').upsert(saveObj);
       if (error) {
           console.error(`💾 Supabase Save Error [${error.code}]:`, error.message);
-          // If password column missing, try saving without it so progress is still saved
-          if (error.code === 'PGRST204' && error.message.includes('password')) {
-              console.warn('⚠️ Retrying save without password column...');
-              const backupObj = { email: id, state: data.state };
+          
+          // If any column is missing (PGRST204), try saving with only known columns
+          if (error.code === 'PGRST204') {
+              console.warn(`⚠️ Column missing. Retrying save with protected schema (email + state)...`);
+              const backupObj = { email: id, state: data.state || {} };
               const { error: err2 } = await supabase.from('profiles').upsert(backupObj);
               if (err2) console.error('💾 Final Save Error:', err2.message);
-              else console.log('✅ Progress saved (password stored in state JSON).');
+              else console.log('✅ Progress saved (Extra fields moved to state JSON).');
           }
       } else {
           console.log(`✅ Data synced to Supabase for ${id}`);
@@ -120,14 +122,19 @@ function authenticate(req, res, next) {
 // ══════════════════════════════════════════
 
 app.post('/api/auth/register', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.json({ success: false, error: 'Missing username/password' });
+  const { email, password, username } = req.body;
+  if (!email || !password || !username) return res.json({ success: false, error: 'Missing information (Email, Username, or Password)' });
   
   const existing = await dbGet(email);
-  if (existing) return res.json({ success: false, error: 'User already exists' });
+  if (existing) return res.json({ success: false, error: 'A user with this email already exists' });
   
-  // CRITICAL: Deep clone defaultState to prevent object leakage
-  await dbSave(email, { password, state: JSON.parse(JSON.stringify(defaultState)) });
+  // HASH PASSWORD
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+  
+  const initialState = JSON.parse(JSON.stringify(defaultState));
+  await dbSave(email, { password: hashedPassword, username, state: initialState });
+  
   const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '7d' });
   res.json({ success: true, token });
 });
@@ -135,9 +142,13 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   const user = await dbGet(email);
-  if (!user || user.password !== password) return res.json({ success: false, error: 'Invalid credentials' });
+  if (!user) return res.json({ success: false, error: 'No account found with this email' });
   
-  const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '7d' });
+  // COMPARE PASSWORD
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) return res.json({ success: false, error: 'Invalid password' });
+  
+  const token = jwt.sign({ email: user.email || email }, JWT_SECRET, { expiresIn: '7d' });
   res.json({ success: true, token });
 });
 

@@ -6,6 +6,7 @@ let S = {
   timerRunning:false, timerSeconds:0, timerInterval:null, lastSyncedSeconds: 0,
   currentQuiz:null, currentExam:null, examTimer:null,
   learnedKanji:{},
+  username: null,
 };
 let reminders=[];
 
@@ -47,9 +48,16 @@ function closeAuthPage() {
     document.body.style.overflow = 'auto';
   }
 }
+function toggleAuth(isReg) {
+  document.getElementById('authUsernameGroup').style.display = isReg ? 'block' : 'none';
+  document.getElementById('registerActions').style.display = isReg ? 'block' : 'none';
+  document.getElementById('loginActions').style.display = isReg ? 'none' : 'block';
+  document.getElementById('authError').style.display = 'none';
+}
 async function handleAuth(type) {
   const email = document.getElementById('authEmail').value.trim();
   const pwd = document.getElementById('authPwd').value.trim();
+  const user = document.getElementById('authUsername').value.trim();
   const errEl = document.getElementById('authError');
   errEl.style.display = 'none';
 
@@ -58,8 +66,13 @@ async function handleAuth(type) {
     errEl.style.display = 'block';
     return;
   }
+  if (type === 'register' && !user) {
+    errEl.textContent = 'Please choose a username.';
+    errEl.style.display = 'block';
+    return;
+  }
 
-  const res = await api('POST', `/api/auth/${type}`, { email, password: pwd });
+  const res = await api('POST', `/api/auth/${type}`, { email, password: pwd, username: user });
   if (res.success && res.token) {
     localStorage.setItem('jlptEmail', email);
     localStorage.setItem('jlptToken', res.token);
@@ -120,7 +133,9 @@ async function init(){
     if(d.settings)S.settings=d.settings;
     reminders=d.reminders||[];
     if(S.progress.learnedKanji)S.learnedKanji=S.progress.learnedKanji;
+    if(d._username) S.username = d._username; // Set from backup state
   }
+  if (!S.username && currentUser) S.username = currentUser.split('@')[0];
   applyTheme();
   updateLevelUI();
   checkStreak();
@@ -177,7 +192,7 @@ function renderDashboard(){
   const now=new Date();
   document.getElementById('dashDate').textContent=now.toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   const greetingEl = document.getElementById('dashGreeting');
-  const displayName = currentUser ? currentUser.split('@')[0] : 'Guest';
+  const displayName = S.username || 'Guest';
   if(greetingEl) greetingEl.textContent = displayName + '!';
 
   const vocab=VOCAB[S.level]||[];

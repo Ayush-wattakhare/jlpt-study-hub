@@ -26,12 +26,27 @@
   <div class="auth-card" style="border-radius:var(--radius);text-align:center;box-shadow:var(--shadow-lg);width:100%">
     <h1 class="auth-title" style="font-family:var(--font-display);margin-bottom:4px;color:var(--ink)">日本語</h1>
     <p style="color:var(--muted);font-size:15px;margin-bottom:32px;font-weight:600">JLPT Study Hub</p>
-    <div id="authError" style="color:var(--red);background:var(--red-soft);padding:8px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none"></div>
-    <input type="email" id="authEmail" class="auth-input" placeholder="Username" style="width:100%;padding:14px 18px;margin-bottom:14px;border-radius:10px;font-family:var(--font-body);font-size:15px">
-    <input type="password" id="authPwd" class="auth-input" placeholder="Password" style="width:100%;padding:14px 18px;margin-bottom:28px;border-radius:10px;font-family:var(--font-body);font-size:15px">
-    <button class="btn-primary btn-lg" style="width:100%;margin-bottom:14px" onclick="handleAuth('login')">Sign In</button>
-    <button class="btn-secondary" style="width:100%;margin-bottom:20px;font-size:15px;padding:12px" onclick="handleAuth('register')">Create Account</button>
-    <div style="display:flex;flex-direction:column;gap:12px">
+    <div id="authError" style="color:var(--red);background:var(--red-soft);padding:10px;border-radius:10px;font-size:13px;margin-bottom:16px;display:none;border:1px solid rgba(233,69,96,0.1)"></div>
+    
+    <div id="authInputs">
+      <div id="authUsernameGroup" style="display:none">
+        <input type="text" id="authUsername" class="auth-input" placeholder="Display Name (Username)" style="width:100%;padding:14px 18px;margin-bottom:14px;border-radius:10px;font-family:var(--font-body);font-size:15px;border:1px solid var(--border)">
+      </div>
+      <input type="email" id="authEmail" class="auth-input" placeholder="Email Address" style="width:100%;padding:14px 18px;margin-bottom:14px;border-radius:10px;font-family:var(--font-body);font-size:15px;border:1px solid var(--border)">
+      <input type="password" id="authPwd" class="auth-input" placeholder="Password" style="width:100%;padding:14px 18px;margin-bottom:28px;border-radius:10px;font-family:var(--font-body);font-size:15px;border:1px solid var(--border)">
+    </div>
+
+    <div id="loginActions">
+      <button class="btn-primary btn-lg" style="width:100%;margin-bottom:14px" onclick="handleAuth('login')">Sign In</button>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:20px">New student? <a href="javascript:void(0)" onclick="toggleAuth(true)" style="color:var(--accent);font-weight:600">Create Account</a></p>
+    </div>
+
+    <div id="registerActions" style="display:none">
+      <button class="btn-primary btn-lg" style="width:100%;margin-bottom:14px" onclick="handleAuth('register')">Create My Account</button>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:20px">Already have an account? <a href="javascript:void(0)" onclick="toggleAuth(false)" style="color:var(--accent);font-weight:600">Sign In instead</a></p>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:10px;border-top:1px solid var(--border);padding-top:20px">
       <button style="border:none;background:none;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer;font-family:var(--font-body)" onclick="continueAsGuest()">Continue as Guest (No saving)</button>
       <button style="border:none;background:none;color:var(--indigo);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-body)" onclick="closeAuthPage()">← Back to App (Maybe Later)</button>
     </div>
