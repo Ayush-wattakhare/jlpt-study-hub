@@ -16,7 +16,11 @@ self.addEventListener('install', (e) => {
       '/js/exam-data.js',
       '/js/n4-tests.js',
       '/js/listening.js',
-      '/js/resource.js'
+      '/js/resource.js',
+      '/img/icon-192.jpg',
+      '/img/icon-512.jpg',
+      '/img/screenshot1.png',
+      '/img/screenshot2.png'
     ])),
   );
 });
