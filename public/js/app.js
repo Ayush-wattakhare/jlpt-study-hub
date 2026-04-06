@@ -502,29 +502,8 @@ function speak(text){
 }
 
 function renderListening(){
-  const resources = S.level === 'N5' ? [
-    {title:"NHK News Web Easy",desc:"Simplified news with native audio. Best for N5 beginners.",icon:"📻",tag:"N5 Friendly",url:"https://www3.nhk.or.jp/news/easy/"},
-    {title:"Japanese with Teppei",desc:"A clear, slow-paced podcast about daily life in Japan.",icon:"🎙️",tag:"Level: Easy",url:"https://nihongoconteppei.com/"},
-    {title:"Let's Talk in Japanese",desc:"N5 specific episodes for absolute beginners.",icon:"🎧",tag:"N5 Podcast",url:"https://letstalkinjapanese.jp/topic/n5/"},
-    {title:"JapanesePod101 (N5)",desc:"Basic conversation lessons for JLPT N5.",icon:"📺",tag:"N5 Lessons",url:"https://www.youtube.com/playlist?list=PLB56E5A0B1A0A01E2"}
-  ] : [
-    {title:"NHK News Web Easy",desc:"Continue with simplified news but focus on reading and listening without furigana.",icon:"📻",tag:"N4 Practice",url:"https://www3.nhk.or.jp/news/easy/"},
-    {title:"Listen with Teppei (N4)",desc:"Slightly faster natural conversations for pre-intermediate learners.",icon:"🎙️",tag:"N4 Natural",url:"https://nihongoconteppei.com/category/n4/"},
-    {title:"Miku Real Japanese",desc:"Excellent N4 level natural listening practice with grammar focus.",icon:"🎧",tag:"N4 Focused",url:"https://www.youtube.com/c/MikuRealJapanese"},
-    {title:"JapanesePod101 (N4)",desc:"N4 Grammar and Vocabulary through context.",icon:"📺",tag:"N4 Mastery",url:"https://www.youtube.com/playlist?list=PLB56E5A0B1A0A01E2"}
-  ];
-
-  const samples = S.level === 'N5' ? [
-    {q:"こんにちは、お元気ですか？",en:"Hello, how are you?"},
-    {q:"明日は　どこへ　行きますか？",en:"Where are you going tomorrow?"},
-    {q:"日本語は　とても　面白いです。",en:"Japanese is very interesting."},
-    {q:"すみません、トイレはどこですか？",en:"Excuse me, where is the toilet?"}
-  ] : [
-    {q:"日本に行ったことがありますか？",en:"Have you ever been to Japan?"},
-    {q:"今日は雨が降るかもしれません。",en:"It might rain today."},
-    {q:"私は　日本料理を　作ることができます。",en:"I can cook Japanese food."},
-    {q:"もっと　ゆっくり　話していただけませんか？",en:"Could you please speak more slowly?"}
-  ];
+  const resources = LISTENING_RESOURCES[S.level] || LISTENING_RESOURCES.N5;
+  const samples = LISTENING_SAMPLES[S.level] || LISTENING_SAMPLES.N5;
 
   document.getElementById('practice-area').innerHTML=`
     <div class="results-wrap">
@@ -1228,46 +1207,8 @@ function renderResource(){
   const container = document.getElementById('resourceContainer');
   if(!container) return;
   
-  const base = 'https://drive.google.com/drive/folders/';
   const lv = S.level || 'N5';
-  
-  // Specific folder IDs based on level
-  const levelFolders = {
-    'N5': '1BxdZFe0KMYffkSleqKHHWq3xZcH8FoBo',
-    'N4': '1fCRrECk_LJeh8EFId91zozWG1qmJC1zK',
-    'N3': '19OGnwgJVvXu-D0LocJAU7dGXmEShcUY5',
-    'N2': '18VRgqSrS-DdMzl2ndb62ANfGekklc-Vs',
-    'N1': '1E9pr3Rb03HHlBm247iVYeEe9CjehjVGM'
-  };
-
-  const resources = [
-    {
-      title: `${lv} Essentials`,
-      desc: lv === 'N5' 
-        ? 'Genki textbooks, Minna no Nihongo, and the complete N5 Kanji guide.' 
-        : `Comprehensive ${lv} textbooks, advanced grammar guides, and level-specific PDFs.`,
-      icon: '📗',
-      link: base + (levelFolders[lv] || levelFolders['N5'])
-    },
-    {
-      title: 'Kanji & Mnemonics',
-      desc: 'Over 1000 Kanji mnemonics and the famous "Remembering the Kanji" series.',
-      icon: '✍️',
-      link: base + '1bB_yt4ceMaMy3whp7jeuWx2pYizZtsVA'
-    },
-    {
-      title: 'Previous Year Papers',
-      desc: `Actual JLPT ${lv} question papers from previous years for realistic practice.`,
-      icon: '📄',
-      link: base + '1wn99JIk_JPtoLCVmrKvJh6xpnUC5zNMQ'
-    },
-    {
-      title: 'Other Levels',
-      desc: 'Browse materials for other JLPT levels to plan your future studies.',
-      icon: '🚀',
-      link: 'https://drive.google.com/drive/folders/1ADNQA100A9kuAJbq7ooOpziFqHSh1S_O'
-    }
-  ];
+  const resources = RESOURCE_DATA.getResources(lv);
 
   container.innerHTML = resources.map(r => `
     <a href="${r.link}" target="_blank" style="text-decoration:none;transition:transform 0.2s" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'" class="resource-card-link">

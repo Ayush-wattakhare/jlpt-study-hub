@@ -5,10 +5,15 @@ self.addEventListener('install', (e) => {
       '/index.html',
       '/css/style.css',
       '/js/app.js',
-      '/js/data.js',
+      '/js/kana.js',
+      '/js/vocabulary.js',
+      '/js/grammar.js',
+      '/js/kanji.js',
       '/js/data-extra.js',
       '/js/exam-data.js',
-      '/js/n4-tests.js'
+      '/js/n4-tests.js',
+      '/js/listening.js',
+      '/js/resource.js'
     ])),
   );
 });
