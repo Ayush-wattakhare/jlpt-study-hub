@@ -880,6 +880,9 @@ function gainXP(amount, reason="Practice"){
   if (amount !== 0) {
     S.xpHistory.unshift({ date: new Date().toISOString(), amount, reason: amount > 0 ? reason : "Reverted " + reason });
     if (S.xpHistory.length > 50) S.xpHistory = S.xpHistory.slice(0, 50);
+    if (amount > 0) {
+      toast(`+${amount} XP Earned! 🌟`);
+    }
   }
   const xpEl=document.getElementById('sideXP'); if(xpEl)xpEl.textContent=S.xp;
   const xpFill=document.getElementById('xpFill'); if(xpFill)xpFill.style.width=Math.min(100,(S.xp%500)/5)+'%';
