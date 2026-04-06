@@ -263,8 +263,8 @@ function renderDashboard(){
   }
 
   // Stats
-  const vDone = kDone ? kDone * 2 : 0;
-  const gramDone = Object.keys(S.progress||{}).filter(k=>k.startsWith('gram-')&&S.progress[k]).length;
+  const vDone = Object.keys(S.progress||{}).filter(k=>k.startsWith('voc-')&&S.progress[k]&&k.endsWith('_'+S.level)).length;
+  const gramDone = Object.keys(S.progress||{}).filter(k=>k.startsWith('gram-')&&S.progress[k]&&k.endsWith('_'+S.level)).length;
   
   const vPct = vocab.length ? Math.min(1, vDone / vocab.length) : 0;
   const gPct = grammar.length ? Math.min(1, gramDone / grammar.length) : 0;
@@ -367,29 +367,71 @@ function renderVocab(cat='all'){
   const cats=[...new Set((VOCAB[S.level]||[]).map(v=>v.cat))];
   document.getElementById('vocabFilterBar').innerHTML=
     ['all',...cats].map(c=>`<button class="filter-chip${c===cat?' on':''}" onclick="renderVocab('${c}')">${c.charAt(0).toUpperCase()+c.slice(1)}</button>`).join('');
-  document.getElementById('vocabGrid').innerHTML=data.map(v=>`
-    <div class="vocab-card" onclick="this.classList.toggle('expanded')">
+  document.getElementById('vocabGrid').innerHTML=data.map((v)=>{
+    const key = `voc-${v.jp}_${S.level}`;
+    const learned = S.progress[key];
+    return `
+    <div class="vocab-card${learned?' learned':''}" onclick="this.classList.toggle('expanded')" style="position:relative;">
+      <div style="position:absolute;top:10px;right:10px;z-index:2">
+        <button class="btn-secondary" style="padding:4px 8px;font-size:11px" onclick="event.stopPropagation(); toggleVocab('${key}', this.parentElement.parentElement, '${v.en}')">${learned?'Unmark':'Learned ✓'}</button>
+      </div>
       <div class="vc-jp">${v.jp}</div>
       <div class="vc-read">${v.r}</div>
       <div class="vc-en">${v.en}</div>
       <span class="vc-cat">${v.cat}</span>
       <div class="vc-example"><div style="font-family:'Noto Sans JP',sans-serif">${v.ex}</div><div style="color:var(--teal);margin-top:3px">${v.exEn}</div></div>
-    </div>`).join('');
+    </div>`
+  }).join('');
+}
+async function toggleVocab(key, el, name) {
+  S.progress[key] = !S.progress[key];
+  if(S.progress[key]) {
+    el.classList.add('learned');
+    el.querySelector('button').textContent = 'Unmark';
+    toast('Vocab learned! ✓ ' + name);
+  } else {
+    el.classList.remove('learned');
+    el.querySelector('button').textContent = 'Learned ✓';
+    toast('Unmarked');
+  }
+  markActivity();
+  api('PATCH', '/api/state', { progress: S.progress });
 }
 function renderGrammar(){
   const data=GRAMMAR[S.level]||[];
-  document.getElementById('grammarList').innerHTML=data.map(g=>`
-    <div class="gram-card" onclick="this.classList.toggle('open')">
+  document.getElementById('grammarList').innerHTML=data.map((g)=>{
+    const key = `gram-${g.pattern}_${S.level}`;
+    const learned = S.progress[key];
+    return `
+    <div class="gram-card${learned?' learned':''}" onclick="this.classList.toggle('open')">
       <div style="display:flex;justify-content:space-between;align-items:start">
         <div><div class="gram-pattern">${g.pattern}</div><div class="gram-meaning">${g.meaning}</div></div>
-        <span class="gram-tag">${g.tag}</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;z-index:2">
+          <span class="gram-tag">${g.tag}</span>
+          <button class="btn-secondary" style="padding:4px 8px;font-size:11px" onclick="event.stopPropagation(); toggleGrammar('${key}', this.parentElement.parentElement.parentElement, '${g.pattern}')">${learned?'Unmark':'Learned ✓'}</button>
+        </div>
       </div>
       <div class="gram-body">
         <div class="gram-explanation">${g.explanation}</div>
         ${g.examples.map(e=>`<div class="gram-example"><div class="gram-ex-jp">${e.jp}</div><div class="gram-ex-read">${e.r}</div><div class="gram-ex-en">${e.en}</div></div>`).join('')}
         ${g.notes?`<div class="gram-notes">💡 ${g.notes}</div>`:''}
       </div>
-    </div>`).join('');
+    </div>`
+  }).join('');
+}
+async function toggleGrammar(key, el, name) {
+  S.progress[key] = !S.progress[key];
+  if(S.progress[key]) {
+    el.classList.add('learned');
+    el.querySelector('button').textContent = 'Unmark';
+    toast('Pattern learned! ✓ ' + name);
+  } else {
+    el.classList.remove('learned');
+    el.querySelector('button').textContent = 'Learned ✓';
+    toast('Unmarked');
+  }
+  markActivity();
+  api('PATCH', '/api/state', { progress: S.progress });
 }
 function renderKanji(cat='all'){
   const data=(KANJI[S.level]||[]).filter(k=>cat==='all'||k.cat===cat);
@@ -575,7 +617,13 @@ window._fcState = { pool: [], idx: 0, known: 0 };
 window._fcAction = function(action) {
   if (action === 'know') {
     window._fcState.known++;
-    gainXP(5, 'Flashcard: ' + window._fcState.pool[window._fcState.idx].jp);
+    const c = window._fcState.pool[window._fcState.idx];
+    const key = `voc-${c.jp}_${S.level}`;
+    if (!S.progress[key]) {
+      S.progress[key] = true;
+      api('PATCH', '/api/state', { progress: S.progress });
+    }
+    gainXP(5, 'Flashcard: ' + c.jp);
   }
   window._fcState.idx++;
   window._fcRender();
