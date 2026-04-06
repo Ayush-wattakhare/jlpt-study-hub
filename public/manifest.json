@@ -11,41 +11,41 @@
   "categories": ["education", "books", "productivity"],
   "icons": [
     {
-      "src": "/img/icon-192.png",
+      "src": "/img/icon-192.jpg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any"
     },
     {
-      "src": "/img/icon-512.png",
+      "src": "/img/icon-512.jpg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any"
     },
     {
-      "src": "/img/icon-192.png",
+      "src": "/img/icon-192.jpg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "maskable"
     },
     {
-      "src": "/img/icon-512.png",
+      "src": "/img/icon-512.jpg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "maskable"
     }
   ],
   "screenshots": [
     {
       "src": "/img/screenshot1.png",
-      "sizes": "1024x1024",
+      "sizes": "1920x912",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Custom Dashboard & Study Timeline"
     },
     {
       "src": "/img/screenshot2.png",
-      "sizes": "1024x1024",
+      "sizes": "1920x912",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Interactive Kanji & Vocabulary Practice"
