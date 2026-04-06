@@ -1127,7 +1127,7 @@ function renderChecklist(){
         ${p.items.map(item=>{
           const key=`cl-${S.level}-${item.id}`;
           const done=S.progress[key];
-          return`<div class="cl-item ${done?'done':''}" onclick="toggleCheckItem('${key}',${item.pts})">
+          return`<div class="cl-item ${done?'done':''}" onclick="toggleCheckItem('${key}',${item.pts},'${item.text}')">
             <div class="cl-box">${done?'✓':''}</div>
             <div class="cl-text">${item.text}</div>
             <div class="cl-pts">+${item.pts}pt</div>
@@ -1138,13 +1138,13 @@ function renderChecklist(){
   `).join('');
 }
 
-async function toggleCheckItem(key,pts){
+async function toggleCheckItem(key,pts,label="Task Completed"){
   const wasDone = S.progress[key];
   S.progress[key]=!S.progress[key];
   if(!wasDone) {
-    gainXP(pts, `Task: ${label}`);
+    gainXP(pts, label);
   } else {
-    gainXP(-pts, `Task: ${label}`);
+    gainXP(-pts, label);
   }
   
   // UPDATE UI IMMEDIATELY (Smooth experience)
