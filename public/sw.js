@@ -1,6 +1,7 @@
 const CACHE_NAME = 'jlpt-store-v2';
 
 self.addEventListener('install', (e) => {
+  self.skipWaiting();
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll([
       '/',
@@ -28,7 +29,7 @@ self.addEventListener('activate', (e) => {
           return caches.delete(key);
         }
       }));
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
