@@ -1,6 +1,8 @@
+const CACHE_NAME = 'jlpt-store-v2';
+
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open('jlpt-store').then((cache) => cache.addAll([
+    caches.open(CACHE_NAME).then((cache) => cache.addAll([
       '/',
       '/index.html',
       '/css/style.css',
@@ -18,8 +20,33 @@ self.addEventListener('install', (e) => {
   );
 });
 
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then((keyList) => {
+      return Promise.all(keyList.map((key) => {
+        if (key !== CACHE_NAME) {
+          return caches.delete(key);
+        }
+      }));
+    })
+  );
+});
+
 self.addEventListener('fetch', (e) => {
+  // Network First, falling back to cache
   e.respondWith(
-    caches.match(e.request).then((response) => response || fetch(e.request)),
+    fetch(e.request).then((response) => {
+      // If we got a valid response, clone it and update the cache
+      if (response && response.status === 200 && response.type === 'basic') {
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(e.request, responseToCache);
+        });
+      }
+      return response;
+    }).catch(() => {
+      // If network fails (offline), return cached version
+      return caches.match(e.request);
+    })
   );
 });
