@@ -38,14 +38,14 @@
   "screenshots": [
     {
       "src": "/img/screenshot1.png",
-      "sizes": "1920x1080",
+      "sizes": "1024x1024",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Custom Dashboard & Study Timeline"
     },
     {
       "src": "/img/screenshot2.png",
-      "sizes": "1920x1080",
+      "sizes": "1024x1024",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Interactive Kanji & Vocabulary Practice"
