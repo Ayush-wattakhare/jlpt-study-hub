@@ -367,10 +367,21 @@ function renderVocab(cat='all'){
   const cats=[...new Set((VOCAB[S.level]||[]).map(v=>v.cat))];
   document.getElementById('vocabFilterBar').innerHTML=
     ['all',...cats].map(c=>`<button class="filter-chip${c===cat?' on':''}" onclick="renderVocab('${c}')">${c.charAt(0).toUpperCase()+c.slice(1)}</button>`).join('');
-  document.getElementById('vocabGrid').innerHTML=data.map((v)=>{
+  
+  let html = '';
+  let lastSub = null;
+  
+  data.forEach((v) => {
+    if (v.sub && v.sub !== lastSub) {
+      html += `<div class="vocab-section-header" style="grid-column: 1 / -1; margin-top: 20px; font-weight: 700; color: var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 5px; margin-bottom: 10px;">${v.sub}</div>`;
+      lastSub = v.sub;
+    } else if (!v.sub && lastSub !== null) {
+      lastSub = null;
+    }
+
     const key = `voc-${v.jp}_${S.level}`;
     const learned = S.progress[key];
-    return `
+    html += `
     <div class="vocab-card${learned?' learned':''}" onclick="this.classList.toggle('expanded')" style="position:relative;">
       <div style="position:absolute;top:10px;right:10px;z-index:2">
         <button class="btn-secondary" style="padding:4px 8px;font-size:11px" onclick="event.stopPropagation(); toggleVocab('${key}', this.parentElement.parentElement, '${v.en}')">${learned?'Unmark':'Learned ✓'}</button>
@@ -380,8 +391,10 @@ function renderVocab(cat='all'){
       <div class="vc-en">${v.en}</div>
       <span class="vc-cat">${v.cat}</span>
       <div class="vc-example"><div style="font-family:'Noto Sans JP',sans-serif">${v.ex}</div><div style="color:var(--teal);margin-top:3px">${v.exEn}</div></div>
-    </div>`
-  }).join('');
+    </div>`;
+  });
+  
+  document.getElementById('vocabGrid').innerHTML = html;
 }
 async function toggleVocab(key, el, name) {
   S.progress[key] = !S.progress[key];
