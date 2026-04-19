@@ -86,41 +86,6 @@ YOUR_PHONE_NUMBER=+91XXXXXXXXXX       # Your personal mobile (India = +91...)
 
 ---
 
-## 🌐 Deploy Online (Free)
-
-### Option A — Render (Recommended, Free tier)
-
-1. Push your code to a GitHub repository
-2. Go to [https://render.com](https://render.com) and sign in with GitHub
-3. Click **New → Web Service**
-4. Select your repository
-5. Set:
-   - **Build Command:** `npm install`
-   - **Start Command:** `npm start`
-   - **Environment:** Node
-6. Add environment variables (same as your `.env` file) in the Render dashboard
-7. Click **Deploy** — your app will be live at `https://your-app.onrender.com`
-
-### Option B — Railway (Very easy)
-
-1. Go to [https://railway.app](https://railway.app)
-2. Click **New Project → Deploy from GitHub**
-3. Select your repo
-4. Add environment variables in the Variables tab
-5. Done — live in ~2 minutes!
-
-### Option C — Run locally, access from phone (ngrok)
-
-If you just want to test from your phone on the same WiFi:
-```bash
-npm install -g ngrok
-npm start            # in terminal 1
-ngrok http 3000      # in terminal 2
-```
-Use the `https://xxxx.ngrok.io` URL on your phone.
-
----
-
 ## 🗂 Project Structure
 
 ```
