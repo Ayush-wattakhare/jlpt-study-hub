@@ -71,6 +71,102 @@
   </div>
 </div>
 
+<!-- KANJI DETAIL & STROKE ORDER MODAL -->
+<div id="kanji-detail-modal" class="modal-overlay" onclick="if(event.target===this)closeKanjiModal()">
+  <div class="kanji-modal-box">
+    <button class="kanji-modal-close" onclick="closeKanjiModal()" title="Close">✕</button>
+
+    <!-- Header Section -->
+    <div class="km-header">
+      <div class="km-char-badge" id="kmChar">一</div>
+      <div class="km-header-info">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span class="km-badge level" id="kmLevel">N5</span>
+          <span class="km-badge category" id="kmCategory">numbers</span>
+          <span class="km-badge strokes" id="kmStrokesBadge">1 stroke</span>
+        </div>
+        <div class="km-meaning" id="kmMeaning">one</div>
+        <div class="km-readings">
+          <div><span class="km-r-label">音 (Onyomi):</span> <strong id="kmOn">イチ</strong></div>
+          <div><span class="km-r-label">訓 (Kunyomi):</span> <strong id="kmKun">ひとつ</strong></div>
+        </div>
+      </div>
+      <button class="km-learned-btn" id="kmLearnedBtn" onclick="toggleKanjiFromModal()">
+        <span>✓</span> Learned
+      </button>
+    </div>
+
+    <!-- Section 1: Stroke Order & Practice -->
+    <div class="km-section-card">
+      <div class="km-sec-title">✍️ Stroke Order & Writing Animation</div>
+      
+      <div class="km-stroke-flex">
+        <!-- Animated SVG Player Container -->
+        <div class="km-stroke-player-wrap">
+          <div class="km-stroke-box" id="kmStrokeBox">
+            <!-- Dynamic KanjiVG SVG or Canvas fallback -->
+          </div>
+          <div class="km-player-controls">
+            <button class="km-ctrl-btn" onclick="playKanjiStrokeAnimation()" title="Replay Animation">▶ Replay Strokes</button>
+            <button class="km-ctrl-btn sec" onclick="toggleStrokeNumbers()" id="kmNumberToggleBtn"># Toggle Numbers</button>
+          </div>
+        </div>
+
+        <!-- Radical & Structure Breakdown -->
+        <div class="km-rad-box">
+          <div class="km-rad-item">
+            <span class="km-rad-lbl">Radical (部首):</span>
+            <strong id="kmRadicalText">一 (One)</strong>
+          </div>
+          <div class="km-rad-item">
+            <span class="km-rad-lbl">Components:</span>
+            <span id="kmCompText">Single stroke line</span>
+          </div>
+          <div class="km-rad-item">
+            <span class="km-rad-lbl">Stroke Count:</span>
+            <span id="kmStrokeCountText">1 stroke</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step-by-Step Stroke Preview Cards -->
+      <div class="km-steps-wrap">
+        <div class="km-steps-title">Step-by-Step Writing Sequence</div>
+        <div class="km-steps-row" id="kmStepsRow">
+          <!-- Step cards rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Interactive Canvas Practice Pad -->
+      <div class="km-canvas-wrap">
+        <div class="km-canvas-header">
+          <span>🎨 Practice Tracing Pad</span>
+          <div style="display:flex;gap:6px">
+            <button class="km-mini-btn" onclick="toggleCanvasGuide()" id="kmGuideBtn">Guide: ON</button>
+            <button class="km-mini-btn danger" onclick="clearPracticeCanvas()">Clear</button>
+          </div>
+        </div>
+        <div class="km-canvas-container">
+          <div class="km-canvas-watermark" id="kmCanvasWatermark">一</div>
+          <canvas id="kanjiPracticeCanvas" width="240" height="240"></canvas>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center">Draw over the guide with mouse or touch</div>
+      </div>
+    </div>
+
+    <!-- Section 2: Similar Family Kanji -->
+    <div class="km-section-card" style="margin-bottom:0">
+      <div class="km-sec-title">🌳 Similar Kanji & Radical Family</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Click any Kanji to explore its writing and family details:</p>
+      <div class="km-family-grid" id="kmFamilyGrid">
+        <!-- Clickable similar kanji cards rendered dynamically -->
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
 <!-- ── TOP NAV ── -->
 <nav class="nav">
   <div class="nav-logo">日本語 <span>JLPT Study Hub</span></div>
@@ -198,7 +294,7 @@
   <!-- Kanji -->
   <div class="learn-section" id="ls-kanji">
     <div class="filter-bar" id="kanjiFilterBar"></div>
-    <p class="hint-text">Tap a kanji to mark it as learned.</p>
+    <p class="hint-text">Click any kanji to view stroke order animation, writing guide & similar Kanji family.</p>
     <div class="kanji-grid" id="kanjiGrid"></div>
   </div>
 </section>

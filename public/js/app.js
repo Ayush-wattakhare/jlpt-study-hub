@@ -446,6 +446,14 @@ async function toggleGrammar(key, el, name) {
   markActivity();
   api('PATCH', '/api/state', { progress: S.progress });
 }
+// ── KANJI MODAL & STROKE ORDER SYSTEM ──
+let currentKanjiObj = null;
+let currentKanjiKey = '';
+let showStrokeNumbers = true;
+let guideOn = true;
+let isDrawing = false;
+let lastX = 0, lastY = 0;
+
 function renderKanji(cat='all'){
   const data=(KANJI[S.level]||[]).filter(k=>cat==='all'||k.cat===cat);
   const cats=[...new Set((KANJI[S.level]||[]).map(k=>k.cat))];
@@ -453,18 +461,346 @@ function renderKanji(cat='all'){
     ['all',...cats].map(c=>`<button class="filter-chip${c===cat?' on':''}" onclick="renderKanji('${c}')">${c.charAt(0).toUpperCase()+c.slice(1)}</button>`).join('');
   document.getElementById('kanjiGrid').innerHTML=data.map(k=>{
     const key=k.k+'_'+S.level;const learned=S.learnedKanji[key];
-    return`<div class="kanji-card${learned?' learned':''}" onclick="toggleKanji('${key}',this,'${k.en}')"><div class="kanji-ch">${k.k}</div><div class="kanji-on">${k.on}</div><div class="kanji-en">${k.en}</div></div>`;
+    return`<div class="kanji-card${learned?' learned':''}" onclick="openKanjiModal('${k.k}')">
+      ${learned?'<div class="kanji-learned-tag">✓ Learned</div>':''}
+      <div class="kanji-ch">${k.k}</div>
+      <div class="kanji-on">${k.on}</div>
+      <div class="kanji-en">${k.en}</div>
+    </div>`;
   }).join('');
 }
-async function toggleKanji(key,el,name){
-  S.learnedKanji[key]=!S.learnedKanji[key];
-  el.classList.toggle('learned');
-  S.progress.learnedKanji=S.learnedKanji;
+
+async function openKanjiModal(kanjiChar){
+  // Search in current level first, then other level
+  let kj = (KANJI[S.level]||[]).find(k => k.k === kanjiChar);
+  let lvl = S.level;
+  if(!kj){
+    const otherLvl = S.level === 'N5' ? 'N4' : 'N5';
+    kj = (KANJI[otherLvl]||[]).find(k => k.k === kanjiChar);
+    if(kj) lvl = otherLvl;
+  }
+  if(!kj){
+    // Generic fallback object if character is from extended list
+    kj = { k: kanjiChar, on: '—', kun: '—', en: 'Japanese Kanji', cat: 'general' };
+  }
+
+  currentKanjiObj = kj;
+  currentKanjiKey = kj.k + '_' + lvl;
+  const meta = getKanjiMetadata(kj.k, kj.cat, lvl);
+
+  // Update Header Elements
+  document.getElementById('kmChar').textContent = kj.k;
+  document.getElementById('kmLevel').textContent = lvl;
+  document.getElementById('kmCategory').textContent = kj.cat || 'general';
+  document.getElementById('kmStrokesBadge').textContent = meta.strokes + (meta.strokes === 1 ? ' stroke' : ' strokes');
+  document.getElementById('kmMeaning').textContent = kj.en || '';
+  document.getElementById('kmOn').textContent = kj.on || '—';
+  document.getElementById('kmKun').textContent = kj.kun || '—';
+
+  // Update Radical & Component info
+  document.getElementById('kmRadicalText').textContent = meta.rad;
+  document.getElementById('kmCompText').textContent = meta.comp;
+  document.getElementById('kmStrokeCountText').textContent = meta.strokes + (meta.strokes === 1 ? ' stroke' : ' strokes');
+
+  // Update Learned Button
+  updateModalLearnedBtn();
+
+  // Render Stroke Order Animation
+  renderKanjiStrokeAnimation(kj.k, meta.strokes);
+
+  // Render Step-by-Step Sequence
+  renderKanjiSteps(kj.k, meta.strokes);
+
+  // Render Similar Kanji Family
+  renderSimilarKanji(kj.k, meta.family, kj.cat, lvl);
+
+  // Init Practice Canvas
+  initPracticeCanvas(kj.k);
+
+  // Show Modal
+  const modal = document.getElementById('kanji-detail-modal');
+  if(modal) modal.classList.add('open');
+}
+
+function closeKanjiModal(){
+  const modal = document.getElementById('kanji-detail-modal');
+  if(modal) modal.classList.remove('open');
+}
+
+function updateModalLearnedBtn(){
+  const btn = document.getElementById('kmLearnedBtn');
+  if(!btn) return;
+  const isLearned = !!S.learnedKanji[currentKanjiKey];
+  if(isLearned){
+    btn.classList.add('active');
+    btn.innerHTML = '<span>✓</span> Learned!';
+  } else {
+    btn.classList.remove('active');
+    btn.innerHTML = '<span>＋</span> Mark Learned';
+  }
+}
+
+async function toggleKanjiFromModal(){
+  if(!currentKanjiKey) return;
+  S.learnedKanji[currentKanjiKey] = !S.learnedKanji[currentKanjiKey];
+  S.progress.learnedKanji = S.learnedKanji;
+  updateModalLearnedBtn();
+  renderKanji(document.querySelector('#kanjiFilterBar .filter-chip.on')?.textContent?.toLowerCase() || 'all');
   markActivity();
   await api('PATCH','/api/state',{progress:S.progress,streak:S.streak,lastStudied:S.lastStudied,activityLog:S.activityLog});
-  if(S.learnedKanji[key])toast('Kanji learned! ✓ '+name);
+  if(S.learnedKanji[currentKanjiKey]) toast('Kanji learned! ✓ ' + (currentKanjiObj?.en || ''));
   else toast('Unmarked');
 }
+
+// ── KANJI STROKE ANIMATION & SVG PLAYER ──
+async function renderKanjiStrokeAnimation(kanjiChar, strokeCount){
+  const box = document.getElementById('kmStrokeBox');
+  if(!box) return;
+  box.innerHTML = '<div style="color:var(--muted);font-size:13px">Loading stroke data...</div>';
+
+  const svgUrl = getKanjiVGUrl(kanjiChar);
+  try {
+    const resp = await fetch(svgUrl);
+    if(!resp.ok) throw new Error('SVG fetch failed');
+    let svgText = await resp.text();
+    
+    // Inject custom stroke styling & stroke order animations
+    box.innerHTML = svgText;
+    const svgEl = box.querySelector('svg');
+    if(svgEl){
+      svgEl.setAttribute('width', '180');
+      svgEl.setAttribute('height', '180');
+      styleAndAnimateKanjiSVG(svgEl);
+
+      // Extract path data for real step-by-step stroke diagrams!
+      const paths = Array.from(svgEl.querySelectorAll('path')).map(p => p.getAttribute('d')).filter(Boolean);
+      if(paths.length > 0){
+        renderKanjiSteps(kanjiChar, paths);
+        // Update stroke count badge with actual path count
+        document.getElementById('kmStrokesBadge').textContent = paths.length + (paths.length === 1 ? ' stroke' : ' strokes');
+        document.getElementById('kmStrokeCountText').textContent = paths.length + (paths.length === 1 ? ' stroke' : ' strokes');
+      }
+    }
+  } catch(e) {
+    // Fallback dynamic SVG stroke generator if offline or CDN unavailable
+    box.innerHTML = generateFallbackKanjiSVG(kanjiChar, strokeCount);
+    playKanjiStrokeAnimation();
+    renderKanjiSteps(kanjiChar, strokeCount);
+  }
+}
+
+function styleAndAnimateKanjiSVG(svgEl){
+  const paths = svgEl.querySelectorAll('path');
+  const texts = svgEl.querySelectorAll('text');
+
+  paths.forEach((path, idx) => {
+    const length = path.getTotalLength ? path.getTotalLength() : 300;
+    path.style.strokeDasharray = length;
+    path.style.strokeDashoffset = length;
+    path.style.animation = `drawKanjiStroke 0.8s ease forwards ${idx * 0.45}s`;
+  });
+
+  texts.forEach((text) => {
+    text.style.display = showStrokeNumbers ? 'block' : 'none';
+    text.style.fontSize = '12px';
+    text.style.fill = 'var(--red)';
+    text.style.fontFamily = 'var(--font-mono)';
+  });
+}
+
+function generateFallbackKanjiSVG(kanjiChar, strokeCount){
+  return `
+    <svg width="180" height="180" viewBox="0 0 109 109" class="fallback-kanji-svg">
+      <line x1="0" y1="54.5" x2="109" y2="54.5" stroke="var(--border)" stroke-dasharray="3,3" />
+      <line x1="54.5" y1="0" x2="54.5" y2="109" stroke="var(--border)" stroke-dasharray="3,3" />
+      <text x="54.5" y="76" font-size="78" text-anchor="middle" font-family="'Noto Sans JP', sans-serif" fill="var(--ink)" class="fallback-char-anim">${kanjiChar}</text>
+    </svg>
+  `;
+}
+
+function playKanjiStrokeAnimation(){
+  if(!currentKanjiObj) return;
+  const box = document.getElementById('kmStrokeBox');
+  const svgEl = box.querySelector('svg');
+  if(svgEl && svgEl.querySelectorAll('path').length > 0){
+    styleAndAnimateKanjiSVG(svgEl);
+  } else {
+    // Re-trigger fallback animation
+    const textEl = box.querySelector('.fallback-char-anim');
+    if(textEl){
+      textEl.style.animation = 'none';
+      textEl.offsetHeight; // Reflow trigger
+      textEl.style.animation = 'fadeInStroke 0.8s ease forwards';
+    }
+  }
+}
+
+function toggleStrokeNumbers(){
+  showStrokeNumbers = !showStrokeNumbers;
+  const btn = document.getElementById('kmNumberToggleBtn');
+  if(btn) btn.textContent = showStrokeNumbers ? '# Hide Numbers' : '# Show Numbers';
+  const box = document.getElementById('kmStrokeBox');
+  if(box){
+    box.querySelectorAll('text').forEach(t => {
+      t.style.display = showStrokeNumbers ? 'block' : 'none';
+    });
+  }
+}
+
+// ── STEP-BY-STEP STROKE SEQUENCE ──
+function renderKanjiSteps(kanjiChar, strokePathsOrCount){
+  const row = document.getElementById('kmStepsRow');
+  if(!row) return;
+  
+  let html = '';
+  
+  if(Array.isArray(strokePathsOrCount) && strokePathsOrCount.length > 0){
+    const paths = strokePathsOrCount;
+    const totalSteps = paths.length;
+    
+    for(let i = 1; i <= totalSteps; i++){
+      // Previous cumulative strokes drawn in dark navy/ink
+      const prevStrokesSvg = paths.slice(0, i - 1).map(d => `<path d="${d}" fill="none" stroke="var(--ink)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+      // Current NEW stroke highlighted in bright RED (#c0392b) with slightly thicker line
+      const currentStrokeSvg = `<path d="${paths[i - 1]}" fill="none" stroke="#c0392b" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+      html += `
+        <div class="km-step-card">
+          <div class="km-step-num">Step ${i}</div>
+          <div class="km-step-svg-box">
+            <svg viewBox="0 0 109 109" width="52" height="52">
+              <line x1="0" y1="54.5" x2="109" y2="54.5" stroke="var(--border2)" stroke-dasharray="2,2" />
+              <line x1="54.5" y1="0" x2="54.5" y2="109" stroke="var(--border2)" stroke-dasharray="2,2" />
+              ${prevStrokesSvg}
+              ${currentStrokeSvg}
+            </svg>
+          </div>
+          <div class="km-step-lbl">${i === 1 ? 'Initial stroke' : i === totalSteps ? 'Final stroke' : 'Stroke ' + i}</div>
+        </div>
+      `;
+    }
+  } else {
+    // Fallback if path array is not available
+    const totalSteps = Math.min(Math.max(typeof strokePathsOrCount === 'number' ? strokePathsOrCount : 4, 1), 12);
+    for(let i = 1; i <= totalSteps; i++){
+      html += `
+        <div class="km-step-card">
+          <div class="km-step-num">Step ${i}</div>
+          <div class="km-step-char" style="opacity:${0.3 + (i/totalSteps)*0.7}">${kanjiChar}</div>
+          <div class="km-step-lbl">${i === 1 ? 'Initial stroke' : i === totalSteps ? 'Final stroke' : 'Stroke ' + i}</div>
+        </div>
+      `;
+    }
+  }
+  row.innerHTML = html;
+}
+
+
+// ── SIMILAR KANJI FAMILY ──
+function renderSimilarKanji(currentChar, familyArray=[], category='', currentLevel='N5'){
+  const grid = document.getElementById('kmFamilyGrid');
+  if(!grid) return;
+
+  // Gather related kanji candidates
+  let candidates = new Set(familyArray || []);
+  
+  // Add same category kanji if needed
+  const pool = [...(KANJI.N5 || []), ...(KANJI.N4 || [])];
+  pool.filter(k => k.cat === category && k.k !== currentChar).forEach(k => candidates.add(k.k));
+
+  const list = Array.from(candidates).filter(c => c !== currentChar).slice(0, 10);
+
+  if(list.length === 0){
+    grid.innerHTML = '<div style="font-size:13px;color:var(--muted);grid-column:1/-1">No similar family kanji listed.</div>';
+    return;
+  }
+
+  grid.innerHTML = list.map(ch => {
+    const item = pool.find(k => k.k === ch) || { k: ch, on: '', en: '' };
+    return `
+      <div class="km-fam-card" onclick="openKanjiModal('${item.k}')" title="View stroke & details for ${item.k}">
+        <div class="km-fam-ch">${item.k}</div>
+        <div class="km-fam-en">${item.en || 'related'}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── INTERACTIVE CANVAS PRACTICE PAD ──
+function initPracticeCanvas(kanjiChar){
+  const canvas = document.getElementById('kanjiPracticeCanvas');
+  const watermark = document.getElementById('kmCanvasWatermark');
+  if(!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  if(watermark){
+    watermark.textContent = kanjiChar;
+    watermark.style.display = guideOn ? 'flex' : 'none';
+  }
+
+  // Event Listeners for Mouse & Touch Drawing
+  canvas.onmousedown = (e) => startDrawing(e, canvas);
+  canvas.onmousemove = (e) => draw(e, canvas);
+  canvas.onmouseup = () => stopDrawing();
+  canvas.onmouseleave = () => stopDrawing();
+
+  canvas.ontouchstart = (e) => { e.preventDefault(); startDrawing(e.touches[0], canvas); };
+  canvas.ontouchmove = (e) => { e.preventDefault(); draw(e.touches[0], canvas); };
+  canvas.ontouchend = () => stopDrawing();
+}
+
+function startDrawing(e, canvas){
+  isDrawing = true;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  lastX = (e.clientX - rect.left) * scaleX;
+  lastY = (e.clientY - rect.top) * scaleY;
+}
+
+function draw(e, canvas){
+  if(!isDrawing) return;
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const currentX = (e.clientX - rect.left) * scaleX;
+  const currentY = (e.clientY - rect.top) * scaleY;
+
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(currentX, currentY);
+  ctx.strokeStyle = '#c0392b'; // Dynamic stroke ink color
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  lastX = currentX;
+  lastY = currentY;
+}
+
+function stopDrawing(){
+  isDrawing = false;
+}
+
+function clearPracticeCanvas(){
+  const canvas = document.getElementById('kanjiPracticeCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function toggleCanvasGuide(){
+  guideOn = !guideOn;
+  const watermark = document.getElementById('kmCanvasWatermark');
+  const btn = document.getElementById('kmGuideBtn');
+  if(watermark) watermark.style.display = guideOn ? 'flex' : 'none';
+  if(btn) btn.textContent = guideOn ? 'Guide: ON' : 'Guide: OFF';
+}
+
 
 // ── PRACTICE ──
 let practiceState={};

@@ -530,5 +530,166 @@ body{font-family:var(--font-body);background:var(--surface);color:var(--ink);min
   background: rgba(255,255,255,0.05) !important;
 }
 
+/* ── KANJI CARD LEARNED TAG ── */
+.kanji-card { position: relative; }
+.kanji-learned-tag {
+  position: absolute; top: 4px; right: 6px;
+  font-size: 9px; font-weight: 700; color: var(--teal);
+  background: var(--teal-soft); padding: 1px 6px; border-radius: 999px;
+}
+
+/* ── KANJI DETAIL & STROKE ORDER MODAL ── */
+.kanji-modal-box {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 24px;
+  max-width: 680px; width: 94%; max-height: 90vh;
+  overflow-y: auto; position: relative; box-shadow: var(--shadow-lg);
+  animation: fadeUp .25s ease;
+}
+.kanji-modal-close {
+  position: absolute; top: 16px; right: 18px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 50%; width: 32px; height: 32px;
+  font-size: 14px; color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .2s; z-index: 10;
+}
+.kanji-modal-close:hover { background: var(--ink); color: var(--surface); }
+
+/* Header */
+.km-header {
+  display: flex; align-items: center; gap: 16px;
+  padding-bottom: 18px; border-bottom: 1px solid var(--border2);
+  margin-bottom: 20px; flex-wrap: wrap;
+}
+.km-char-badge {
+  font-family: 'Noto Sans JP', sans-serif; font-size: 54px; font-weight: 700;
+  width: 80px; height: 80px; border-radius: var(--radius-sm);
+  background: var(--card-dark); color: var(--text-on-dark);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow); flex-shrink: 0;
+}
+.km-header-info { flex: 1; min-width: 200px; }
+.km-badge {
+  font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;
+}
+.km-badge.level { background: var(--indigo-soft); color: var(--indigo); }
+.km-badge.category { background: var(--gold-soft); color: var(--gold); }
+.km-badge.strokes { background: var(--teal-soft); color: var(--teal); }
+.km-meaning { font-size: 20px; font-weight: 700; color: var(--ink); margin-bottom: 4px; text-transform: capitalize; }
+.km-readings { display: flex; gap: 16px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+.km-r-label { color: var(--muted); font-size: 12px; }
+.km-readings strong { color: var(--ink); font-weight: 600; }
+
+.km-learned-btn {
+  padding: 8px 16px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--ink); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 6px;
+}
+.km-learned-btn:hover { border-color: var(--teal); color: var(--teal); }
+.km-learned-btn.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+
+/* Section Cards */
+.km-section-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 18px; margin-bottom: 16px;
+}
+.km-sec-title { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 14px; }
+
+/* Stroke Player & Radical Box */
+.km-stroke-flex { display: flex; gap: 16px; align-items: stretch; flex-wrap: wrap; margin-bottom: 16px; }
+.km-stroke-player-wrap {
+  flex: 1; min-width: 220px; background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+}
+.km-stroke-box {
+  width: 180px; height: 180px; display: flex; align-items: center; justify-content: center;
+  position: relative; background: radial-gradient(circle, var(--border2) 1px, transparent 1px);
+  background-size: 16px 16px; border-radius: 8px; overflow: hidden;
+}
+.km-stroke-box svg { max-width: 100%; max-height: 100%; }
+
+@keyframes drawKanjiStroke {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes fadeInStroke {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.km-player-controls { display: flex; gap: 8px; margin-top: 10px; }
+.km-ctrl-btn {
+  padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  border: none; background: var(--ink); color: var(--surface); cursor: pointer;
+  transition: all .15s; font-family: var(--font-body);
+}
+.km-ctrl-btn:hover { opacity: .85; }
+.km-ctrl-btn.sec { background: var(--card); border: 1px solid var(--border); color: var(--ink); }
+.km-ctrl-btn.sec:hover { border-color: var(--ink); }
+
+.km-rad-box {
+  flex: 1; min-width: 200px; background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px; display: flex; flex-direction: column; justify-content: center; gap: 12px;
+}
+.km-rad-item { font-size: 13px; color: var(--ink); display: flex; flex-direction: column; gap: 2px; }
+.km-rad-lbl { font-size: 11px; color: var(--muted); font-weight: 500; }
+
+/* Step-by-Step Row */
+.km-steps-wrap { margin-bottom: 16px; }
+.km-steps-title { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
+.km-steps-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
+.km-step-card {
+  min-width: 76px; background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 6px; text-align: center; flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+}
+.km-step-num { font-size: 10px; font-weight: 700; color: var(--indigo); text-transform: uppercase; margin-bottom: 2px; }
+.km-step-svg-box {
+  width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;
+  margin: 4px 0; background: var(--surface); border-radius: 6px; border: 1px solid var(--border2);
+}
+.km-step-char { font-family: 'Noto Sans JP', sans-serif; font-size: 26px; margin: 4px 0; color: var(--ink); }
+.km-step-lbl { font-size: 9px; color: var(--muted); white-space: nowrap; }
+
+
+/* Practice Canvas */
+.km-canvas-wrap {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px;
+}
+.km-canvas-header { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+.km-mini-btn {
+  padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink); cursor: pointer; transition: all .15s;
+}
+.km-mini-btn:hover { border-color: var(--ink); }
+.km-mini-btn.danger { color: var(--red); border-color: rgba(192,57,43,0.3); background: var(--red-soft); }
+.km-mini-btn.danger:hover { background: var(--red); color: #fff; }
+
+.km-canvas-container {
+  width: 240px; height: 240px; margin: 0 auto; position: relative;
+  border: 2px dashed var(--border); border-radius: 12px; background: #ffffff;
+  overflow: hidden; touch-action: none;
+}
+[data-theme='dark'] .km-canvas-container { background: #1a1a24; }
+.km-canvas-watermark {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: 'Noto Sans JP', sans-serif; font-size: 160px; color: rgba(120,120,120,0.15);
+  pointer-events: none; user-select: none; font-weight: 700;
+}
+#kanjiPracticeCanvas { position: absolute; inset: 0; cursor: crosshair; }
+
+/* Similar Kanji Family */
+.km-family-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
+.km-fam-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 4px; text-align: center; cursor: pointer; transition: all .2s;
+}
+.km-fam-card:hover { border-color: var(--gold); transform: translateY(-2px); box-shadow: var(--shadow); }
+.km-fam-ch { font-family: 'Noto Sans JP', sans-serif; font-size: 24px; color: var(--ink); line-height: 1.1; }
+.km-fam-en { font-size: 10px; color: var(--gold); font-weight: 600; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+
 
 
