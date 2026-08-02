@@ -110,6 +110,7 @@ async function handleAuth(type) {
   const pwd = document.getElementById('authPwd').value.trim();
   const user = document.getElementById('authUsername').value.trim();
   const errEl = document.getElementById('authError');
+  const btn = document.querySelector(type === 'register' ? '#registerActions .btn-primary' : '#loginActions .btn-primary');
   errEl.style.display = 'none';
 
   if (!email || !pwd) {
@@ -123,15 +124,33 @@ async function handleAuth(type) {
     return;
   }
 
-  const res = await api('POST', `/api/auth/${type}`, { email, password: pwd, username: user });
-  if (res.success && res.token) {
-    localStorage.setItem('jlptEmail', email);
-    localStorage.setItem('jlptToken', res.token);
-    localStorage.removeItem('jlptGuest');
-    location.reload();
-  } else {
-    errEl.textContent = res.error || 'Authentication failed.';
+  // Show loading state
+  const originalText = btn ? btn.textContent : '';
+  if (btn) { btn.textContent = 'Please wait...'; btn.disabled = true; }
+
+  try {
+    // IMPORTANT: Use direct fetch — bypasses the guest-mode api() interceptor
+    const r = await fetch(`/api/auth/${type}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pwd, username: user })
+    });
+    const res = await r.json();
+
+    if (res.success && res.token) {
+      localStorage.setItem('jlptEmail', email);
+      localStorage.setItem('jlptToken', res.token);
+      localStorage.removeItem('jlptGuest');
+      location.reload();
+    } else {
+      errEl.textContent = res.error || 'Authentication failed. Please try again.';
+      errEl.style.display = 'block';
+      if (btn) { btn.textContent = originalText; btn.disabled = false; }
+    }
+  } catch (e) {
+    errEl.textContent = 'Network error. Make sure the server is running.';
     errEl.style.display = 'block';
+    if (btn) { btn.textContent = originalText; btn.disabled = false; }
   }
 }
 function handleLogout() {
