@@ -1567,3 +1567,188 @@ body{font-family:var(--font-body);background:var(--surface);color:var(--ink);min
   .exam-header { flex-wrap: wrap; gap: 8px; margin: -20px -16px 16px; padding: 8px 14px; }
   .exam-timer-display { font-size: 22px; }
 }
+
+/* ══════════════════════════════════════════════
+   AI VOICE CHAT STYLING
+═══════════════════════════════════════════════ */
+.scen-chip {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+  font-family: var(--font-body);
+}
+.scen-chip:hover { border-color: var(--teal); color: var(--teal); }
+.scen-chip.active {
+  background: var(--teal);
+  color: #ffffff;
+  border-color: var(--teal);
+  font-weight: 600;
+}
+
+.chat-thread { scroll-behavior: smooth; }
+
+.chat-bubble {
+  max-width: 85%;
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  line-height: 1.6;
+  position: relative;
+  animation: chatFadeUp 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes chatFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.user-bubble {
+  align-self: flex-end;
+  background: var(--indigo);
+  color: #ffffff;
+  border-bottom-right-radius: 4px;
+}
+.user-bubble .chat-sender {
+  font-size: 11px;
+  opacity: 0.8;
+  font-weight: 600;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.user-bubble .chat-text {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.ai-bubble {
+  align-self: flex-start;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  border-bottom-left-radius: 4px;
+  box-shadow: var(--shadow-sm);
+}
+
+.chat-sender-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chat-sender-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--teal);
+}
+.chat-audio-btn {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.chat-audio-btn:hover {
+  background: var(--teal);
+  color: #fff;
+  border-color: var(--teal);
+}
+
+.chat-text-jp {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.chat-text-romaji {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.chat-text-romaji code {
+  font-family: var(--font-mono);
+  background: var(--surface);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.chat-text-en {
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.chat-correction-box {
+  background: var(--gold-soft);
+  border: 1px solid rgba(184, 134, 11, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-top: 10px;
+  font-size: 12px;
+}
+.cor-badge {
+  font-weight: 700;
+  color: var(--gold);
+  display: block;
+  margin-bottom: 2px;
+}
+.cor-text { color: var(--ink); line-height: 1.5; }
+
+.chat-replies-wrap {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+.replies-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: block;
+}
+.replies-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.reply-chip {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.reply-chip:hover {
+  background: var(--teal-soft);
+  color: var(--teal);
+  border-color: var(--teal);
+}
+
+.mic-pulse-btn.listening {
+  background: var(--red-soft) !important;
+  color: var(--red) !important;
+  border-color: var(--red) !important;
+  animation: micPulse 1.2s infinite ease-in-out;
+}
+@keyframes micPulse {
+  0% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.4); }
+  70% { box-shadow: 0 0 0 12px rgba(192, 57, 43, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0); }
+}
+

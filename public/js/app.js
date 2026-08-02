@@ -222,6 +222,7 @@ function goto(page,btn){
   else if(page==='exam')renderExamLobby();
   else if(page==='tracker')renderTracker();
   else if(page==='reminders')renderReminders();
+  else if(page==='aivoice')initAiVoiceChat();
   else if(page==='resource')renderResource();
 }
 

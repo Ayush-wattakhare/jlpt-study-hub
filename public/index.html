@@ -178,6 +178,7 @@
     <button class="nav-btn" onclick="goto('exam',this);document.getElementById('navLinks').classList.remove('open')">Live Exam</button>
     <button class="nav-btn" onclick="goto('tracker',this);document.getElementById('navLinks').classList.remove('open')">Tracker</button>
     <button class="nav-btn" onclick="goto('reminders',this);document.getElementById('navLinks').classList.remove('open')">Reminders</button>
+    <button class="nav-btn" onclick="goto('aivoice',this);document.getElementById('navLinks').classList.remove('open')">🗣️ AI Voice Chat</button>
     <button class="nav-btn" onclick="goto('resource',this);document.getElementById('navLinks').classList.remove('open')">Resource</button>
   </div>
   <div class="nav-right">
@@ -952,6 +953,66 @@
   </div>
 </section>
 
+<!-- AI VOICE CHAT -->
+<section class="page" id="page-aivoice">
+  <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+    <div>
+      <h1 class="page-title">🗣️ AI Voice Chat <span style="font-size:14px;color:var(--teal)">Live Japanese Practice</span></h1>
+      <p style="color:var(--muted);font-size:13px;margin-top:2px">Practice conversational Japanese with Sakura-sensei using voice input & native audio responses.</p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="filter-chip on" id="autoSpeakToggle" onclick="toggleAutoSpeak()">🔊 Voice On</button>
+      <button class="filter-chip on" id="transToggle" onclick="toggleTranslationView()">🌐 English &amp; Romaji On</button>
+    </div>
+  </div>
+
+  <!-- Sensei Header Banner -->
+  <div class="aivoice-banner" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 24px;margin:20px 0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;box-shadow:var(--shadow-sm);">
+    <div style="display:flex;align-items:center;gap:16px">
+      <div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--teal-soft),var(--indigo-soft));border:2px solid var(--teal);display:flex;align-items:center;justify-content:center;font-size:28px;">
+        🌸
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:16px;color:var(--ink)">Sakura-sensei (さくら先生)</div>
+        <div style="font-size:12px;color:var(--muted)">Your Personal Conversational Tutor · <span id="aiLevelBadge" style="font-weight:600;color:var(--teal)">N5 Level</span></div>
+      </div>
+    </div>
+    <span id="aiStatusBadge" style="font-size:12px;font-weight:600;padding:6px 14px;border-radius:999px;background:var(--surface);color:var(--muted)">
+      Ready to practice!
+    </span>
+  </div>
+
+  <!-- Topic Scenarios Carousel -->
+  <div style="margin-bottom:16px">
+    <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Select Conversation Scenario:</div>
+    <div id="aiScenariosContainer" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px"></div>
+  </div>
+
+  <!-- Chat Thread Card -->
+  <div class="aivoice-card" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;height:520px;">
+    
+    <!-- Thread Content -->
+    <div class="chat-thread" id="aiChatThread" style="flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;background:var(--surface);"></div>
+
+    <!-- Interactive Voice & Input Bar -->
+    <div class="chat-input-bar" style="background:var(--card);border-top:1px solid var(--border);padding:14px 20px;display:flex;flex-direction:column;gap:12px;">
+      
+      <!-- Big Microphone Button -->
+      <button class="mic-pulse-btn" id="aiMicBtn" onclick="toggleMicListening()" style="width:100%;padding:14px;border-radius:var(--radius-sm);border:1.5px solid var(--teal);background:var(--teal-soft);color:var(--teal);font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all 0.2s;">
+        🎙️ <span>Tap to Speak Japanese</span>
+      </button>
+
+      <!-- Text Input Fallback -->
+      <div style="display:flex;gap:10px;align-items:center;">
+        <input type="text" id="aiInputText" placeholder="Type Japanese or English message..." style="flex:1;padding:12px 16px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);color:var(--ink);font-size:14px;outline:none;" onkeydown="if(event.key==='Enter')sendUserMessage()">
+        <button class="btn-primary" style="padding:12px 20px;font-size:14px;background:var(--teal);border:none;" onclick="sendUserMessage()">🚀 Send</button>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
 </main>
 
 <!-- ── FLOATING TIMER ── -->
@@ -993,6 +1054,7 @@
 <script src="/js/n4-tests.js"></script>
 <script src="/js/listening.js"></script>
 <script src="/js/resource.js"></script>
+<script src="/js/aivoice.js"></script>
 <script src="/js/app.js"></script>
 <script>
   if('serviceWorker' in navigator) {
