@@ -20,14 +20,65 @@ if (!currentUser && !isGuest) {
   localStorage.setItem('jlptGuest', 'true');
 }
 
+// ── DATE HELPERS ──
+function todayKey() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+function yesterdayKey() {
+  const now = new Date();
+  now.setDate(now.getDate() - 1);
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// ── LOCAL STORAGE (Guest Persistence) ──
+const LS_KEY = 'jlpt_guest_state';
+function saveGuestState() {
+  if (!isGuest) return;
+  const snap = {
+    level: S.level, xp: S.xp, streak: S.streak,
+    lastStudied: S.lastStudied, studyTimeSeconds: S.studyTimeSeconds,
+    testResults: S.testResults, progress: S.progress,
+    weakAreas: S.weakAreas, activityLog: S.activityLog,
+    learnedKanji: S.learnedKanji, settings: S.settings,
+    xpHistory: S.xpHistory
+  };
+  try { localStorage.setItem(LS_KEY, JSON.stringify(snap)); } catch(e) {}
+}
+function loadGuestState() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
 // ── API ──
-const api = async (method,path,body)=>{
+const api = async (method, path, body) => {
+  // For guests — save to localStorage instead of hitting server
+  if (isGuest) {
+    if (method === 'GET') {
+      const d = loadGuestState();
+      return { success: true, data: d || {} };
+    }
+    if (method === 'PATCH' && body) {
+      Object.keys(body).forEach(k => { if (body[k] !== undefined) S[k] = body[k]; });
+      saveGuestState();
+      return { success: true };
+    }
+    return { success: true };
+  }
   try{
     const r=await fetch(path,{
       method,
       headers:{
         'Content-Type':'application/json',
-        'x-user-email': currentUser || (isGuest ? 'guest' : ''),
+        'x-user-email': currentUser || '',
         ...(currentToken ? { 'Authorization': `Bearer ${currentToken}` } : {})
       },
       body:body?JSON.stringify(body):undefined
@@ -130,17 +181,22 @@ async function init(){
     S.completedLessons=d.completedLessons||[]; S.testResults=d.testResults||[];
     S.progress=d.progress||{}; S.achievements=d.achievements||[];
     S.weakAreas=d.weakAreas||{}; S.activityLog=d.activityLog||{};
+    S.xpHistory=d.xpHistory||[];
     if(d.settings)S.settings=d.settings;
     reminders=d.reminders||[];
-    if(S.progress.learnedKanji)S.learnedKanji=S.progress.learnedKanji;
+    if(d.learnedKanji) S.learnedKanji=d.learnedKanji;
+    else if(S.progress.learnedKanji) S.learnedKanji=S.progress.learnedKanji;
     if(d._username) S.username = d._username; // Set from backup state
   }
   if (!S.username && currentUser) S.username = currentUser.split('@')[0];
   applyTheme();
   updateLevelUI();
+  // Auto-mark visit — counts just opening the site as a study day
+  markActivity();
   checkStreak();
   renderDashboard();
   renderStudyTimer();
+  initReminderEngine();
   if(!document.querySelector('.mob-nav'))initMobileNav();
 }
 
@@ -318,20 +374,43 @@ function renderDashboard(){
 
 function buildCal(){
   const cal=document.getElementById('miniCal');
+  if(!cal) return;
   const today=new Date();
-  const start=new Date(today.getFullYear(),today.getMonth(),1);
-  const dow=(start.getDay()+6)%7;
-  const days=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
-  let html='';
-  for(let i=0;i<dow;i++)html+='<div class="cal-cell"></div>';
+  const yr=today.getFullYear();
+  const mo=today.getMonth();
+  const start=new Date(yr,mo,1);
+  const dow=(start.getDay()+6)%7; // Monday-first
+  const days=new Date(yr,mo+1,0).getDate();
+  const todayNum=today.getDate();
+  
+  // Month label
+  const monthNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  
+  let html=`<div class="cal-month-label">${monthNames[mo]} ${yr}</div>`;
+  html+='<div class="cal-day-headers"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>';
+  html+='<div class="cal-grid">';
+  for(let i=0;i<dow;i++) html+='<div class="cal-cell"></div>';
   for(let d=1;d<=days;d++){
-    const key=`${today.getFullYear()}-${today.getMonth()+1}-${d}`;
+    // Use zero-padded key to match markActivity format
+    const key=`${yr}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     let cls = '';
-    if(S.activityLog[key]) cls += ' done';
-    if(d===today.getDate()) cls += ' today';
-    html+=`<div class="cal-cell${cls}">${d}</div>`;
+    const isActive = S.activityLog[key];
+    if(isActive) cls += ' done';
+    if(d===todayNum) cls += ' today';
+    html+=`<div class="cal-cell${cls}" title="${key}${isActive?' — Studied':''}"><span>${d}</span></div>`;
   }
+  html+='</div>';
   cal.innerHTML=html;
+}
+
+// ── AUDIO TTS ──
+function playJapaneseAudio(text) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ja-JP';
+  u.rate = 0.85;
+  window.speechSynthesis.speak(u);
 }
 
 // ── LEARN ──
@@ -802,212 +881,801 @@ function toggleCanvasGuide(){
 }
 
 
-// ── PRACTICE ──
-let practiceState={};
-function practiceTab(type,btn){
-  document.querySelectorAll('.learn-tabs .tab-btn').forEach(b=>b.classList.remove('active'));
-  if(btn)btn.classList.add('active');
-  renderPractice(type);
+// ── ADVANCED PRACTICE HUB SYSTEM ──
+function shuffle(arr) {
+  return [...(arr || [])].sort(() => Math.random() - 0.5);
 }
-function renderPractice(type){
-  practiceState.type=type;
-  if(type==='flashcard'){renderFlashcard();return;}
-  if(type==='kana'){renderKanaQuiz();return;}
-  if(type==='listening'){renderListening();return;}
-  let pool=[];
-  if(type==='vocab')pool=QUICK_PRACTICE.vocab;
-  else if(type==='grammar')pool=QUICK_PRACTICE.grammar;
-  else if(type==='kanji'){
-    const kj=KANJI[S.level]||[];
-    pool=kj.map(k=>({q:`この　かんじの　いみは？「${k.k}」`,opts:shuffleWith(k.en,['person','school','water','time','go','eat','big','new']),ans:0,cat:'Kanji',_ans:k.en}));
-    pool=pool.slice(0,10).map(q=>{
-      const correct=q._ans;const wrong=q.opts.filter(o=>o!==correct).slice(0,3);
-      const opts=[correct,...wrong].sort(()=>Math.random()-.5);
-      return{...q,opts,ans:opts.indexOf(correct)};
-    });
-  }
-  practiceState.pool=shuffle(pool).slice(0,10);
-  practiceState.idx=0;practiceState.correct=0;practiceState.answered=false;
-  renderQuizCard();
+function shuffleWith(target, others) {
+  return shuffle([target, ...others.filter(o => o !== target).slice(0, 3)]);
 }
-function shuffleWith(target,others){return shuffle([target,...others.filter(o=>o!==target).slice(0,3)]);}
-function shuffle(arr){return[...arr].sort(()=>Math.random()-.5);}
-
-function renderQuizCard(){
-  const {pool,idx}=practiceState;
-  if(idx>=pool.length){renderQuizResult();return;}
-  const q=pool[idx];
-  const pct=Math.round(idx/pool.length*100);
-  document.getElementById('practice-area').innerHTML=`
-    <div class="quiz-wrap">
-      <div class="quiz-progress">Question ${idx+1} of ${pool.length} · ✓ ${practiceState.correct}</div>
-      <div class="quiz-prog-bar"><div class="quiz-prog-fill" style="width:${pct}%"></div></div>
-      <div class="quiz-card">
-        <div class="quiz-question">${q.q.includes('（　）')||q.q.length<20?`<div class="quiz-q-text">${q.q}</div>`:q.q.split('\n').map((l,i)=>i===0?`<div style="font-size:15px;margin-bottom:16px">${l}</div>`:`<div class="quiz-q-text">${l}</div>`).join('')}</div>
-        <div class="quiz-options" id="quizOpts">
-          ${q.opts.map((o,i)=>`<button class="quiz-opt" onclick="checkAnswer(${i})">${o}</button>`).join('')}
-        </div>
-        <div class="quiz-feedback" id="quizFeedback"></div>
-        <button class="quiz-next-btn" id="quizNext" style="display:none" onclick="nextQuestion()">Next →</button>
-      </div>
-    </div>`;
-}
-function checkAnswer(idx){
-  if(practiceState.answered)return;
-  practiceState.answered=true;
-  const q=practiceState.pool[practiceState.idx];
-  const btns=document.querySelectorAll('.quiz-opt');
-  btns.forEach(b=>b.disabled=true);
-  const correct=idx===q.ans;
-  btns[idx].classList.add(correct?'correct':'wrong');
-  if(!correct)btns[q.ans].classList.add('correct');
-  if(correct){practiceState.correct++;gainXP(10);}
-  else{S.weakAreas[q.cat]=(S.weakAreas[q.cat]||0)+1;}
-  const fb=document.getElementById('quizFeedback');
-  fb.className='quiz-feedback show '+(correct?'ok':'bad');
-  fb.innerHTML=correct?'✓ Correct! '+( q.exp||''):'✗ '+(q.exp||`Correct: ${q.opts[q.ans]}`);
-  document.getElementById('quizNext').style.display='inline-block';
-  markActivity();
-}
-function nextQuestion(){
-  practiceState.idx++;practiceState.answered=false;renderQuizCard();
-}
-function renderQuizResult(){
-  const {correct,pool}=practiceState;
-  const pct=Math.round(correct/pool.length*100);
-  document.getElementById('practice-area').innerHTML=`
-    <div class="quiz-wrap"><div class="quiz-result-card">
-      <div class="quiz-result-score" style="color:${pct>=70?'var(--green)':'var(--accent)'}">${pct}%</div>
-      <div class="quiz-result-pct">${correct}/${pool.length} correct</div>
-      <p style="color:var(--text2);margin-bottom:20px">${pct>=80?'Excellent! 素晴らしい！':pct>=60?'Good work! もう少し！':'Keep practicing! がんばれ！'}</p>
-      <button class="btn-primary" onclick="renderPractice('${practiceState.type}')">Try Again</button>
-    </div></div>`;
+function renderFlashcards(subMode) {
+  renderAdvancedFlashcards(subMode);
 }
 
-function speak(text){
-  if(!window.speechSynthesis)return;
-  speechSynthesis.cancel();
-  const ut=new SpeechSynthesisUtterance(text);
-  ut.lang='ja-JP';ut.rate=0.85;
-  speechSynthesis.speak(ut);
-}
-
-function renderListening(){
-  const resources = LISTENING_RESOURCES[S.level] || LISTENING_RESOURCES.N5;
-  const samples = LISTENING_SAMPLES[S.level] || LISTENING_SAMPLES.N5;
-
-  document.getElementById('practice-area').innerHTML=`
-    <div class="results-wrap">
-      <div class="section-label" style="text-align:center;margin-bottom:20px">${S.level} Interactive Audio Samples (TTS)</div>
-      ${samples.map(s=>`
-        <div class="audio-player-card">
-          <button class="audio-btn" onclick="speak('${s.q}')">▶</button>
-          <div class="audio-info"><div class="audio-q">${s.q}</div><div class="audio-sub">${s.en}</div></div>
-        </div>`).join('')}
-      <div class="section-label" style="text-align:center;margin:32px 0 20px">${S.level} Curated Listening Resources</div>
-      <div class="listening-grid">
-        ${resources.map(r=>`
-          <a href="${r.url}" target="_blank" class="listen-card">
-            <div class="listen-icon">${r.icon}</div>
-            <div class="listen-title">${r.title}</div>
-            <div class="listen-tag">${r.tag}</div>
-            <p class="listen-desc">${r.desc}</p>
-            <div style="font-size:11px;color:var(--teal);font-weight:600">Open Resource →</div>
-          </a>`).join('')}
-      </div>
-    </div>`;
-}
-
-function renderKanaQuiz(){
-  const allKana=[...HIRAGANA,...KATAKANA].flatMap(g=>g.chars.map(c=>({...c,group:g.group})));
-  const pool=shuffle(allKana).slice(0,10).map(c=>{
-    const wrong=shuffle(allKana.filter(k=>k.r!==c.r)).slice(0,3).map(k=>k.r);
-    const opts=shuffle([c.r,...wrong]);
-    return{q:c.jp,opts,ans:opts.indexOf(c.r),cat:'Writing',exp:`${c.jp} = ${c.r}`};
-  });
-  practiceState.pool=pool;practiceState.idx=0;practiceState.correct=0;practiceState.answered=false;
-  document.getElementById('practice-area').innerHTML=`<div class="quiz-wrap" id="kanaQuizWrap"></div>`;
-  renderKanaQ();
-}
-function renderKanaQ(){
-  const {pool,idx}=practiceState;
-  if(idx>=pool.length){
-    const pct=Math.round(practiceState.correct/pool.length*100);
-    document.querySelector('#kanaQuizWrap').innerHTML=`<div class="quiz-result-card"><div class="quiz-result-score" style="color:var(--teal)">${pct}%</div><div class="quiz-result-pct">${practiceState.correct}/${pool.length}</div><button class="btn-primary" style="margin-top:16px" onclick="renderKanaQuiz()">Again</button></div>`;
-    return;
-  }
-  const q=pool[idx];
-  document.querySelector('#kanaQuizWrap').innerHTML=`
-    <div class="quiz-progress">Question ${idx+1}/${pool.length}</div>
-    <div class="quiz-prog-bar"><div class="quiz-prog-fill" style="width:${idx/pool.length*100}%"></div></div>
-    <div class="quiz-card">
-      <div class="quiz-question" style="font-size:72px;font-family:'Noto Sans JP',sans-serif">${q.q}</div>
-      <div class="quiz-hint">What is the reading of this character?</div>
-      <div class="quiz-options">${q.opts.map((o,i)=>`<button class="quiz-opt" onclick="checkKana(${i})">${o}</button>`).join('')}</div>
-      <div class="quiz-feedback" id="kanaFb"></div>
-      <button class="quiz-next-btn" id="kanaNext" style="display:none" onclick="nextKana()">Next →</button>
-    </div>`;
-}
-function checkKana(i){
-  if(practiceState.answered)return;practiceState.answered=true;
-  const q=practiceState.pool[practiceState.idx];
-  document.querySelectorAll('.quiz-opt').forEach(b=>b.disabled=true);
-  document.querySelectorAll('.quiz-opt')[i].classList.add(i===q.ans?'correct':'wrong');
-  if(i!==q.ans)document.querySelectorAll('.quiz-opt')[q.ans].classList.add('correct');
-  if(i===q.ans){practiceState.correct++;gainXP(5);}
-  const fb=document.getElementById('kanaFb');
-  fb.className='quiz-feedback show '+(i===q.ans?'ok':'bad');
-  fb.textContent=i===q.ans?'✓ Correct!':'✗ '+q.exp;
-  document.getElementById('kanaNext').style.display='inline-block';
-}
-function nextKana(){practiceState.idx++;practiceState.answered=false;renderKanaQ();}
-
-window._fcState = { pool: [], idx: 0, known: 0 };
-window._fcAction = function(action) {
-  if (action === 'know') {
-    window._fcState.known++;
-    const c = window._fcState.pool[window._fcState.idx];
-    const key = `voc-${c.jp}_${S.level}`;
-    if (!S.progress[key]) {
-      S.progress[key] = true;
-      api('PATCH', '/api/state', { progress: S.progress });
-    }
-    gainXP(5, 'Flashcard: ' + c.jp);
-  }
-  window._fcState.idx++;
-  window._fcRender();
+let practiceState = {
+  type: 'kana',
+  subMode: 'all',
+  pool: [],
+  idx: 0,
+  correct: 0,
+  answered: false,
+  orderingState: { selected: [] },
+  listeningSpeed: 1.0,
+  showTranscript: false
 };
 
-function renderFlashcard(){
-  const data=VOCAB[S.level]||[];
-  window._fcState.pool=shuffle(data);
-  window._fcState.idx=0;
-  window._fcState.known=0;
-  
-  window._fcRender=()=>{
-    const s = window._fcState;
-    if(s.idx>=s.pool.length){
-      document.getElementById('practice-area').innerHTML=`<div class="quiz-wrap"><div class="quiz-result-card"><div class="quiz-result-score" style="color:var(--teal)">${Math.round(s.known/s.pool.length*100)}%</div><div class="quiz-result-pct">${s.known}/${s.pool.length} known</div><button class="btn-primary" style="margin-top:16px" onclick="renderPractice('flashcard')">Again</button></div></div>`;
-      return;
+const ADVANCED_PRACTICE_DATA = {
+  ordering: [
+    {
+      prompt: 'わたしは [ 1 ] [ 2 ] [ ★ ] [ 4 ] たべます。',
+      blocks: ['きょう', 'レストランで', 'すしを', 'ともだちと'],
+      ansIndex: 2, // 'すしを' is the 3rd item (index 2)
+      fullJp: 'わたしは　きょう　ともだちと　すしを　レストランで　たべます。',
+      exp: 'Correct order: きょう (today) ➔ ともだちと (with friend) ➔ ★ すしを (sushi) ➔ レストランで (at restaurant).'
+    },
+    {
+      prompt: 'あした [ 1 ] [ 2 ] [ ★ ] [ 4 ] いきます。',
+      blocks: ['ともだちと', 'えいがかんへ', 'でんしゃで', 'がっこう'],
+      ansIndex: 1,
+      fullJp: 'あした　でんしゃで　えいがかんへ　ともだちと　いきます。',
+      exp: 'Correct order: でんしゃで (by train) ➔ ★ えいがかんへ (to movie theater) ➔ ともだちと (with friend).'
+    },
+    {
+      prompt: 'つくえの [ 1 ] [ 2 ] [ ★ ] [ 4 ] あります。',
+      blocks: ['うえに', 'あおい', 'ほんが', 'きれい'],
+      ansIndex: 2,
+      fullJp: 'つくえの　うえに　あおい　ほんが　あります。',
+      exp: 'Correct order: うえに (on top) ➔ あおい (blue) ➔ ★ ほんが (book).'
+    },
+    {
+      prompt: 'たなかさんは [ 1 ] [ 2 ] [ ★ ] [ 4 ] はなします。',
+      blocks: ['にほんごを', 'じょうずに', 'とても', 'えいご'],
+      ansIndex: 1,
+      fullJp: 'たなかさんは　にほんごを　とても record じょうずに　はなします。',
+      exp: 'Correct order: にほんごを (Japanese) ➔ とても (very) ➔ ★ じょうずに (skillfully).'
     }
-    const c=s.pool[s.idx];
-    document.getElementById('practice-area').innerHTML=`
-      <div class="flashcard-wrap">
-        <div style="text-align:center;font-size:13px;color:var(--text2);margin-bottom:12px">Card ${s.idx+1}/${s.pool.length} · Known: ${s.known}</div>
-        <div class="flashcard" id="fc" onclick="document.getElementById('fc').classList.toggle('flipped')">
-          <div class="fc-inner">
-            <div class="fc-front"><div style="font-size:52px;font-family:'Noto Sans JP',sans-serif">${c.jp}</div><div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:8px">tap to reveal</div></div>
-            <div class="fc-back"><div class="fc-back-content"><div class="fc-answer">${c.r}</div><div class="fc-reading">${c.en}</div></div></div>
+  ],
+  grammarParticles: [
+    { q: 'わたし（　）毎朝　コーヒーを　飲みます。', opts: ['は', 'が', 'を', 'に'], ans: 0, exp: 'は marks the main topic of the sentence (わたしは).' },
+    { q: '図書館（　）本を　勉強します。', opts: ['で', 'に', 'を', 'から'], ans: 0, exp: 'で marks the location where an action takes place (図書館で).' },
+    { q: '来週　京都（　）行きます。', opts: ['へ', 'で', 'を', 'が'], ans: 0, exp: 'へ (or に) marks the direction or destination (京都へ).' },
+    { q: '毎朝　７時（　）起きます。', opts: ['に', 'で', 'を', 'は'], ans: 0, exp: 'に marks a specific point in time (７時に).' },
+    { q: '駅（　）家まで　歩いて　１５分です。', opts: ['から', 'まで', 'に', 'で'], ans: 0, exp: 'から means "from" starting point (駅から).' },
+    { q: '友達（　）一緒に　映画を　見ました。', opts: ['と', 'に', 'で', 'を'], ans: 0, exp: 'と indicates "together with" someone (友達と).' }
+  ],
+  grammarConjugations: [
+    { q: '「食べる」の　丁寧語（ます形）は？', opts: ['食べます', '食べた', '食べて', '食べない'], ans: 0, exp: 'The polite present form of 食べる is 食べます.' },
+    { q: '「行く」の　て形は？', opts: ['行って', '行きて', '行いた', '行かない'], ans: 0, exp: '行く is an irregular exception: て-form is 行って (itte).' },
+    { q: '「書く」の　否定形（ない形）は？', opts: ['書かない', '書きない', '書かないで', '書かなかった'], ans: 0, exp: 'Group 1 verb 書く becomes 書かない (kakanai).' },
+    { q: '「高い」の　過去形（形容詞）は？', opts: ['高かったです', '高かったです', '高かった', '高くないです'], ans: 0, exp: 'i-adjective 高い past tense is 高かったです.' }
+  ],
+  listeningScenarios: [
+    {
+      id: 'sc1',
+      title: 'あいさつと自己紹介 (Greeting & Intro)',
+      icon: '👋',
+      dialogue: [
+        { speaker: 'A', jp: 'こんにちは！お名前は　何ですか。', r: 'Konnichiwa! Onamae wa nan desu ka.', en: 'Hello! What is your name?' },
+        { speaker: 'B', jp: 'はじめまして。私は元気に　マイクです。アメリカから　来ました。', r: 'Hajimemashite. Watashi wa Maiku desu. Amerika kara kimashita.', en: 'Nice to meet you. I am Mike. I came from America.' },
+        { speaker: 'A', jp: 'どうぞ　よろしく　お願いします！', r: 'Douzo yoroshiku onegaishimasu!', en: 'Pleased to meet you!' }
+      ],
+      question: {
+        q: 'マイクさんは　どこから　来ましたか。',
+        opts: ['アメリカ', '日本', 'イギリス', '中国'],
+        ans: 0,
+        exp: 'Mike states "アメリカから 来ました" (I came from America).'
+      }
+    },
+    {
+      id: 'sc2',
+      title: 'コンビニでお買い物 (Shopping at Konbini)',
+      icon: '🏪',
+      dialogue: [
+        { speaker: '店員', jp: 'いらっしゃいませ！お弁当は　温めますか。', r: 'Irasshaimase! Obentou wa atatamemasu ka.', en: 'Welcome! Shall I heat up your bento?' },
+        { speaker: '客', jp: 'はい、お願いします。お茶も　一本ください。', r: 'Hai, onegaishimasu. Ocha mo ippon kudasai.', en: 'Yes, please. Also give me one bottle of green tea.' },
+        { speaker: '店員', jp: 'かしこまりました。全部で　５００円です。', r: 'Kashikomarimashita. Zenbu de gohyaku-en desu.', en: 'Certainly. That will be 500 yen in total.' }
+      ],
+      question: {
+        q: '全部で　いくらですか。',
+        opts: ['５００円', '３００円', '１０００円', '４００円'],
+        ans: 0,
+        exp: 'The cashier states "全部で ５００円です" (500 yen in total).'
+      }
+    },
+    {
+      id: 'sc3',
+      title: '道を聞く (Asking Directions)',
+      icon: '🗺️',
+      dialogue: [
+        { speaker: 'A', jp: 'すみません、東京駅は　どこですか。', r: 'Sumimasen, Toukyou-eki wa doko desu ka.', en: 'Excuse me, where is Tokyo Station?' },
+        { speaker: 'B', jp: 'あそこを　右に　曲がってください。交番の　隣に　あります。', r: 'Asoko wo migi ni magatte kudasai. Kouban no tonari ni arimasu.', en: 'Turn right over there. It is next to the police box.' },
+        { speaker: 'A', jp: 'わかりました！ありがとうございます。', r: 'Wakarimashita! Arigatou gozaimasu.', en: 'Understood! Thank you very much.' }
+      ],
+      question: {
+        q: '東京駅は　どこに　ありますか。',
+        opts: ['交番の隣', '左の曲がり角', '学校の前', '公園の中'],
+        ans: 0,
+        exp: 'Person B says "交番の 隣に あります" (Next to the police box).'
+      }
+    }
+  ]
+};
+
+function practiceTab(type, btn) {
+  document.querySelectorAll('#practiceTabs .tab-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderPractice(type);
+}
+
+function renderPractice(type, subMode) {
+  practiceState.type = type;
+  
+  if (!subMode) {
+    if (type === 'kana') subMode = 'all';
+    else if (type === 'vocab') subMode = 'meaning';
+    else if (type === 'grammar') subMode = 'particles';
+    else if (type === 'kanji') subMode = 'meaning';
+    else if (type === 'flashcard') subMode = 'vocab';
+    else if (type === 'listening') subMode = 'scenarios';
+  }
+  practiceState.subMode = subMode;
+
+  renderPracticeSubBar(type, subMode);
+
+  if (type === 'kana') renderKanaQuiz(subMode);
+  else if (type === 'vocab') renderVocabQuiz(subMode);
+  else if (type === 'grammar') renderGrammarQuiz(subMode);
+  else if (type === 'kanji') renderKanjiQuiz(subMode);
+  else if (type === 'flashcard') renderFlashcards(subMode);
+  else if (type === 'listening') renderListeningHub(subMode);
+}
+
+function renderPracticeSubBar(type, currentSubMode) {
+  const container = document.getElementById('practice-sub-bar');
+  if (!container) return;
+
+  let modes = [];
+  if (type === 'kana') {
+    modes = [
+      { id: 'all', label: '⚡ All Kana' },
+      { id: 'hiragana', label: 'ひ Hiragana Only' },
+      { id: 'katakana', label: 'カ Katakana Only' },
+      { id: 'combo', label: '🌀 Dakuon & Yoon' },
+      { id: 'reverse', label: '🔄 Reverse (Romaji ➜ Kana)' }
+    ];
+  } else if (type === 'vocab') {
+    modes = [
+      { id: 'meaning', label: '📖 Meaning Quiz' },
+      { id: 'reading', label: '🔤 Reading / Furigana' },
+      { id: 'listening', label: '🎧 Audio Listening' },
+      { id: 'fill', label: '✏️ Sentence Context' }
+    ];
+  } else if (type === 'grammar') {
+    modes = [
+      { id: 'particles', label: '助詞 Particle Challenge' },
+      { id: 'ordering', label: '🧩 Sentence Ordering (並べ替え)' },
+      { id: 'conjugation', label: '🔄 Verb Conjugations' }
+    ];
+  } else if (type === 'kanji') {
+    modes = [
+      { id: 'meaning', label: '漢 Meaning Match' },
+      { id: 'reading', label: '音/訓 Onyomi & Kunyomi' },
+      { id: 'context', label: '📄 Kanji in Sentence' }
+    ];
+  } else if (type === 'flashcard') {
+    modes = [
+      { id: 'vocab', label: '📚 Vocab Cards' },
+      { id: 'kanji', label: '漢 Kanji Cards' },
+      { id: 'grammar', label: '🔤 Grammar Cards' }
+    ];
+  } else if (type === 'listening') {
+    modes = [
+      { id: 'scenarios', label: '💬 Interactive Scenarios' },
+      { id: 'resources', label: '📻 Curated Audio Resources' }
+    ];
+  }
+
+  container.innerHTML = `
+    <div style="font-size:12px;font-weight:600;color:var(--muted);margin-right:8px;text-transform:uppercase;letter-spacing:0.05em">Mode:</div>
+    ${modes.map(m => `
+      <button class="practice-sub-chip${m.id === currentSubMode ? ' active' : ''}" onclick="renderPractice('${type}', '${m.id}')">${m.label}</button>
+    `).join('')}
+  `;
+}
+
+// ── 1. KANA QUIZ ──
+function renderKanaQuiz(subMode = 'all') {
+  let chars = [];
+  if (subMode === 'hiragana') {
+    chars = HIRAGANA.flatMap(g => g.chars.map(c => ({ ...c, cat: 'Hiragana' })));
+  } else if (subMode === 'katakana') {
+    chars = KATAKANA.flatMap(g => g.chars.map(c => ({ ...c, cat: 'Katakana' })));
+  } else if (subMode === 'combo') {
+    const dakuon = [
+      { jp: 'が', r: 'ga' }, { jp: 'ぎ', r: 'gi' }, { jp: 'ぐ', r: 'gu' }, { jp: 'げ', r: 'ge' }, { jp: 'ご', r: 'go' },
+      { jp: 'ざ', r: 'za' }, { jp: 'じ', r: 'ji' }, { jp: 'ず', r: 'zu' }, { jp: 'ぜ', r: 'ze' }, { jp: 'ぞ', r: 'zo' },
+      { jp: 'だ', r: 'da' }, { jp: 'ぢ', r: 'ji' }, { jp: 'づ', r: 'zu' }, { jp: 'で', r: 'de' }, { jp: 'ど', r: 'do' },
+      { jp: 'ば', r: 'ba' }, { jp: 'び', r: 'bi' }, { jp: 'ぶ', r: 'bu' }, { jp: 'べ', r: 'be' }, { jp: 'ぼ', r: 'bo' },
+      { jp: 'ぱ', r: 'pa' }, { jp: 'ぴ', r: 'pi' }, { jp: 'ぷ', r: 'pu' }, { jp: 'ぺ', r: 'pe' }, { jp: 'ぽ', r: 'po' }
+    ];
+    chars = dakuon.map(c => ({ ...c, cat: 'Dakuon' }));
+  } else {
+    chars = [...HIRAGANA, ...KATAKANA].flatMap(g => g.chars.map(c => ({ ...c, cat: g.group })));
+  }
+
+  const pool = shuffle(chars).slice(0, 10).map(c => {
+    if (subMode === 'reverse') {
+      const wrong = shuffle(chars.filter(k => k.jp !== c.jp)).slice(0, 3).map(k => k.jp);
+      const opts = shuffle([c.jp, ...wrong]);
+      return { q: c.r, opts, ans: opts.indexOf(c.jp), targetJp: c.jp, exp: `Romaji "${c.r}" = ${c.jp}` };
+    } else {
+      const wrong = shuffle(chars.filter(k => k.r !== c.r)).slice(0, 3).map(k => k.r);
+      const opts = shuffle([c.r, ...wrong]);
+      return { q: c.jp, opts, ans: opts.indexOf(c.r), targetJp: c.jp, exp: `${c.jp} = ${c.r}` };
+    }
+  });
+
+  practiceState.pool = pool;
+  practiceState.idx = 0;
+  practiceState.correct = 0;
+  practiceState.answered = false;
+  renderKanaQuizCard();
+}
+
+function renderKanaQuizCard() {
+  const { pool, idx, correct } = practiceState;
+  const area = document.getElementById('practice-area');
+  if (idx >= pool.length) {
+    const pct = Math.round(correct / pool.length * 100);
+    area.innerHTML = `
+      <div class="quiz-wrap"><div class="quiz-result-card">
+        <div class="quiz-result-score" style="color:var(--teal)">${pct}%</div>
+        <div class="quiz-result-pct">${correct}/${pool.length} correct</div>
+        <p style="color:var(--muted);margin-bottom:20px">${pct >= 80 ? '🎉 Outstanding Kana Mastery!' : 'Keep practicing daily!'}</p>
+        <button class="btn-primary" onclick="renderKanaQuiz('${practiceState.subMode}')">Try Again</button>
+      </div></div>`;
+    return;
+  }
+
+  const q = pool[idx];
+  const pct = Math.round(idx / pool.length * 100);
+
+  area.innerHTML = `
+    <div class="quiz-wrap">
+      <div class="quiz-progress">Question ${idx + 1} of ${pool.length} · ✓ ${correct}</div>
+      <div class="quiz-prog-bar"><div class="quiz-prog-fill" style="width:${pct}%"></div></div>
+      <div class="quiz-card">
+        <div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-bottom:12px">
+          <div style="font-size:64px;font-family:'Noto Sans JP',sans-serif;font-weight:700;color:var(--ink)">${q.q}</div>
+          ${q.targetJp ? `<button class="pnd-audio-btn" style="font-size:20px;padding:8px 12px" onclick="playJapaneseAudio('${q.targetJp}')" title="Listen">🔊</button>` : ''}
+        </div>
+        <div class="quiz-hint">${practiceState.subMode === 'reverse' ? 'Select the correct Kana for this Romaji sound:' : 'What is the correct reading of this character?'}</div>
+        <div class="quiz-options">
+          ${q.opts.map((o, i) => `<button class="quiz-opt" onclick="checkKanaAnswer(${i})">${o}</button>`).join('')}
+        </div>
+        <div class="quiz-feedback" id="quizFeedback"></div>
+        <button class="quiz-next-btn" id="quizNext" style="display:none" onclick="nextKanaQuestion()">Next →</button>
+      </div>
+    </div>`;
+  
+  if (q.targetJp) playJapaneseAudio(q.targetJp);
+}
+
+function checkKanaAnswer(i) {
+  if (practiceState.answered) return;
+  practiceState.answered = true;
+  const q = practiceState.pool[practiceState.idx];
+  const btns = document.querySelectorAll('.quiz-opt');
+  btns.forEach(b => b.disabled = true);
+  const isCorrect = i === q.ans;
+  btns[i].classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) btns[q.ans].classList.add('correct');
+  
+  if (isCorrect) { practiceState.correct++; gainXP(5); }
+  
+  const fb = document.getElementById('quizFeedback');
+  fb.className = 'quiz-feedback show ' + (isCorrect ? 'ok' : 'bad');
+  fb.innerHTML = isCorrect ? '✓ Correct! ' + q.exp : '✗ ' + q.exp;
+  document.getElementById('quizNext').style.display = 'inline-block';
+}
+
+function nextKanaQuestion() {
+  practiceState.idx++;
+  practiceState.answered = false;
+  renderKanaQuizCard();
+}
+
+// ── 2. VOCAB QUIZ ──
+function renderVocabQuiz(subMode = 'meaning') {
+  const data = VOCAB[S.level] || VOCAB.N5;
+  const pool = shuffle(data).slice(0, 10).map(v => {
+    if (subMode === 'reading') {
+      const wrong = shuffle(data.filter(x => x.r !== v.r)).slice(0, 3).map(x => x.r);
+      const opts = shuffle([v.r, ...wrong]);
+      return { q: `「${v.jp}」の　読み方は？`, opts, ans: opts.indexOf(v.r), tts: v.r, exp: `${v.jp} (${v.r}) = ${v.en}` };
+    } else if (subMode === 'listening') {
+      const wrong = shuffle(data.filter(x => x.en !== v.en)).slice(0, 3).map(x => x.en);
+      const opts = shuffle([v.en, ...wrong]);
+      return { q: `🎧 Listen to the audio word:`, opts, ans: opts.indexOf(v.en), tts: v.r, exp: `${v.jp} (${v.r}) = ${v.en}` };
+    } else if (subMode === 'fill' && v.ex) {
+      const wrong = shuffle(data.filter(x => x.jp !== v.jp)).slice(0, 3).map(x => x.jp);
+      const opts = shuffle([v.jp, ...wrong]);
+      const blankSentence = v.ex.replace(v.jp, '（　）');
+      return { q: blankSentence, opts, ans: opts.indexOf(v.jp), tts: v.r, exp: `Full sentence: ${v.ex} (${v.exEn})` };
+    } else {
+      const wrong = shuffle(data.filter(x => x.en !== v.en)).slice(0, 3).map(x => x.en);
+      const opts = shuffle([v.en, ...wrong]);
+      return { q: `「${v.jp}」 (${v.r}) の意味は？`, opts, ans: opts.indexOf(v.en), tts: v.r, exp: `${v.jp} = ${v.en}` };
+    }
+  });
+
+  practiceState.pool = pool;
+  practiceState.idx = 0;
+  practiceState.correct = 0;
+  practiceState.answered = false;
+  renderQuizCardGeneric();
+}
+
+// ── 3. GRAMMAR QUIZ ──
+function renderGrammarQuiz(subMode = 'particles') {
+  if (subMode === 'ordering') {
+    practiceState.pool = shuffle(ADVANCED_PRACTICE_DATA.ordering);
+    practiceState.idx = 0;
+    practiceState.correct = 0;
+    practiceState.answered = false;
+    renderSentenceOrderingCard();
+    return;
+  }
+
+  let data = [];
+  if (subMode === 'conjugation') data = ADVANCED_PRACTICE_DATA.grammarConjugations;
+  else data = ADVANCED_PRACTICE_DATA.grammarParticles;
+
+  practiceState.pool = shuffle(data);
+  practiceState.idx = 0;
+  practiceState.correct = 0;
+  practiceState.answered = false;
+  renderQuizCardGeneric();
+}
+
+function renderSentenceOrderingCard() {
+  const { pool, idx, correct } = practiceState;
+  const area = document.getElementById('practice-area');
+  if (idx >= pool.length) {
+    const pct = Math.round(correct / pool.length * 100);
+    area.innerHTML = `
+      <div class="quiz-wrap"><div class="quiz-result-card">
+        <div class="quiz-result-score" style="color:var(--indigo)">${pct}%</div>
+        <div class="quiz-result-pct">${correct}/${pool.length} correct</div>
+        <p style="color:var(--muted);margin-bottom:20px">${pct >= 70 ? '🧩 Sentence Structure Master!' : 'Keep practicing sentence blocks!'}</p>
+        <button class="btn-primary" onclick="renderGrammarQuiz('ordering')">Try Again</button>
+      </div></div>`;
+    return;
+  }
+
+  const q = pool[idx];
+  practiceState.orderingState = { selected: [], shuffled: shuffle(q.blocks) };
+  const pct = Math.round(idx / pool.length * 100);
+
+  area.innerHTML = `
+    <div class="quiz-wrap">
+      <div class="quiz-progress">Ordering Challenge ${idx + 1} of ${pool.length} · ✓ ${correct}</div>
+      <div class="quiz-prog-bar"><div class="quiz-prog-fill" style="width:${pct}%"></div></div>
+      
+      <div class="ordering-container">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:6px">Arrange the blocks to complete the sentence:</div>
+        <div class="quiz-q-text" style="font-size:22px;text-align:center">${q.prompt}</div>
+        
+        <div class="ordering-slots" id="orderingSlots">
+          <!-- Filled by updateOrderingUI -->
+        </div>
+
+        <div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:8px">Click blocks below in the correct order:</div>
+        <div class="ordering-pool" id="orderingPool">
+          <!-- Filled by updateOrderingUI -->
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:16px">
+          <button class="btn-secondary" onclick="resetOrderingSlots()">Clear Slots ↺</button>
+          <button class="btn-primary" id="submitOrderingBtn" onclick="checkOrderingAnswer()">Check Sentence ✓</button>
+        </div>
+
+        <div class="quiz-feedback" id="quizFeedback" style="margin-top:16px"></div>
+        <button class="quiz-next-btn" id="quizNext" style="display:none;margin-top:12px" onclick="nextOrderingQuestion()">Next Sentence →</button>
+      </div>
+    </div>`;
+
+  updateOrderingUI();
+}
+
+function updateOrderingUI() {
+  const { selected, shuffled } = practiceState.orderingState;
+  const q = practiceState.pool[practiceState.idx];
+
+  const slotsEl = document.getElementById('orderingSlots');
+  const poolEl = document.getElementById('orderingPool');
+  if (!slotsEl || !poolEl) return;
+
+  // Slots
+  let slotsHtml = '';
+  for (let i = 0; i < q.blocks.length; i++) {
+    const isStar = i === q.ansIndex;
+    if (selected[i] !== undefined) {
+      const blockText = shuffled[selected[i]];
+      slotsHtml += `<div class="ordering-slot-chip${isStar ? ' is-star' : ''}" onclick="removeOrderingSlot(${i})">${isStar ? '★ ' : ''}${blockText}</div>`;
+    } else {
+      slotsHtml += `<div class="ordering-slot-chip${isStar ? ' is-star' : ''}" style="border-style:dashed;opacity:0.5">${isStar ? '★ Slot ' + (i + 1) : 'Slot ' + (i + 1)}</div>`;
+    }
+  }
+  slotsEl.innerHTML = slotsHtml;
+
+  // Pool choices
+  poolEl.innerHTML = shuffled.map((b, idx) => {
+    const isUsed = selected.includes(idx);
+    return `<button class="ordering-choice-chip${isUsed ? ' used' : ''}" onclick="selectOrderingChoice(${idx})">${b}</button>`;
+  }).join('');
+}
+
+function selectOrderingChoice(choiceIdx) {
+  if (practiceState.answered) return;
+  const { selected, shuffled } = practiceState.orderingState;
+  if (selected.length < shuffled.length && !selected.includes(choiceIdx)) {
+    selected.push(choiceIdx);
+    updateOrderingUI();
+  }
+}
+
+function removeOrderingSlot(slotIdx) {
+  if (practiceState.answered) return;
+  practiceState.orderingState.selected.splice(slotIdx, 1);
+  updateOrderingUI();
+}
+
+function resetOrderingSlots() {
+  if (practiceState.answered) return;
+  practiceState.orderingState.selected = [];
+  updateOrderingUI();
+}
+
+function checkOrderingAnswer() {
+  if (practiceState.answered) return;
+  const { selected, shuffled } = practiceState.orderingState;
+  const q = practiceState.pool[practiceState.idx];
+
+  if (selected.length < shuffled.length) {
+    toast('Please place all sentence blocks first!');
+    return;
+  }
+
+  practiceState.answered = true;
+  const userStarItem = shuffled[selected[q.ansIndex]];
+  const isCorrect = userStarItem === q.blocks[q.ansIndex];
+
+  if (isCorrect) {
+    practiceState.correct++;
+    gainXP(15, 'Sentence Ordering Star');
+  }
+
+  const fb = document.getElementById('quizFeedback');
+  fb.className = 'quiz-feedback show ' + (isCorrect ? 'ok' : 'bad');
+  fb.innerHTML = (isCorrect ? '✓ Excellent! Sentence arranged correctly!' : '✗ Incorrect order.') + `<br><div style="margin-top:6px;font-size:13px">${q.exp}</div> <button class="pnd-mini-audio" style="font-size:16px;margin-left:8px" onclick="playJapaneseAudio('${q.fullJp}')">🔊 Listen</button>`;
+
+  document.getElementById('submitOrderingBtn').style.display = 'none';
+  document.getElementById('quizNext').style.display = 'inline-block';
+  playJapaneseAudio(q.fullJp);
+}
+
+function nextOrderingQuestion() {
+  practiceState.idx++;
+  practiceState.answered = false;
+  renderSentenceOrderingCard();
+}
+
+// ── 4. KANJI QUIZ ──
+function renderKanjiQuiz(subMode = 'meaning') {
+  const kjList = KANJI[S.level] || KANJI.N5;
+  const pool = shuffle(kjList).slice(0, 10).map(k => {
+    if (subMode === 'reading') {
+      const wrong = shuffle(kjList.filter(x => x.on !== k.on)).slice(0, 3).map(x => x.on);
+      const opts = shuffle([k.on, ...wrong]);
+      return { q: `「${k.k}」の　音読み（On）は？`, opts, ans: opts.indexOf(k.on), tts: k.kun || k.k, exp: `${k.k}: 音=${k.on}, 訓=${k.kun} (${k.en})` };
+    } else if (subMode === 'context') {
+      const wrong = shuffle(kjList.filter(x => x.k !== k.k)).slice(0, 3).map(x => x.k);
+      const opts = shuffle([k.k, ...wrong]);
+      return { q: `この　漢字は　どれですか？ (${k.en})`, opts, ans: opts.indexOf(k.k), tts: k.k, exp: `${k.k} = ${k.en}` };
+    } else {
+      const wrong = shuffle(kjList.filter(x => x.en !== k.en)).slice(0, 3).map(x => x.en);
+      const opts = shuffle([k.en, ...wrong]);
+      return { q: `「${k.k}」の　意味は？`, opts, ans: opts.indexOf(k.en), tts: k.k, exp: `${k.k}: ${k.en} (音: ${k.on} / 訓: ${k.kun})` };
+    }
+  });
+
+  practiceState.pool = pool;
+  practiceState.idx = 0;
+  practiceState.correct = 0;
+  practiceState.answered = false;
+  renderQuizCardGeneric();
+}
+
+// ── GENERIC QUIZ RENDERER ──
+function renderQuizCardGeneric() {
+  const { pool, idx, correct } = practiceState;
+  const area = document.getElementById('practice-area');
+  if (idx >= pool.length) {
+    const pct = Math.round(correct / pool.length * 100);
+    area.innerHTML = `
+      <div class="quiz-wrap"><div class="quiz-result-card">
+        <div class="quiz-result-score" style="color:var(--green)">${pct}%</div>
+        <div class="quiz-result-pct">${correct}/${pool.length} correct</div>
+        <p style="color:var(--muted);margin-bottom:20px">${pct >= 70 ? '🎉 Great Job!' : 'Keep practicing daily!'}</p>
+        <button class="btn-primary" onclick="renderPractice('${practiceState.type}', '${practiceState.subMode}')">Try Again</button>
+      </div></div>`;
+    return;
+  }
+
+  const q = pool[idx];
+  const pct = Math.round(idx / pool.length * 100);
+
+  area.innerHTML = `
+    <div class="quiz-wrap">
+      <div class="quiz-progress">Question ${idx + 1} of ${pool.length} · ✓ ${correct}</div>
+      <div class="quiz-prog-bar"><div class="quiz-prog-fill" style="width:${pct}%"></div></div>
+      <div class="quiz-card">
+        <div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-bottom:14px">
+          <div class="quiz-q-text" style="font-size:24px;margin-bottom:0">${q.q}</div>
+          ${q.tts ? `<button class="pnd-audio-btn" onclick="playJapaneseAudio('${q.tts}')" title="Listen">🔊</button>` : ''}
+        </div>
+        <div class="quiz-options">
+          ${q.opts.map((o, i) => `<button class="quiz-opt" onclick="checkGenericAnswer(${i})">${o}</button>`).join('')}
+        </div>
+        <div class="quiz-feedback" id="quizFeedback"></div>
+        <button class="quiz-next-btn" id="quizNext" style="display:none" onclick="nextGenericQuestion()">Next →</button>
+      </div>
+    </div>`;
+
+  if (practiceState.subMode === 'listening' && q.tts) {
+    playJapaneseAudio(q.tts);
+  }
+}
+
+function checkGenericAnswer(i) {
+  if (practiceState.answered) return;
+  practiceState.answered = true;
+  const q = practiceState.pool[practiceState.idx];
+  const btns = document.querySelectorAll('.quiz-opt');
+  btns.forEach(b => b.disabled = true);
+  const isCorrect = i === q.ans;
+  btns[i].classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) btns[q.ans].classList.add('correct');
+
+  if (isCorrect) { practiceState.correct++; gainXP(10); }
+
+  const fb = document.getElementById('quizFeedback');
+  fb.className = 'quiz-feedback show ' + (isCorrect ? 'ok' : 'bad');
+  fb.innerHTML = isCorrect ? '✓ Correct! ' + (q.exp || '') : '✗ ' + (q.exp || `Correct: ${q.opts[q.ans]}`);
+  document.getElementById('quizNext').style.display = 'inline-block';
+}
+
+function nextGenericQuestion() {
+  practiceState.idx++;
+  practiceState.answered = false;
+  renderQuizCardGeneric();
+}
+
+// ── 5. SRS FLASHCARDS ──
+function renderAdvancedFlashcards(subMode = 'vocab') {
+  let deck = [];
+  if (subMode === 'kanji') {
+    deck = (KANJI[S.level] || KANJI.N5).map(k => ({ front: k.k, back: `${k.on} / ${k.kun}`, mean: k.en, tts: k.k }));
+  } else if (subMode === 'grammar') {
+    deck = (GRAMMAR[S.level] || GRAMMAR.N5).map(g => ({ front: g.pattern, back: g.meaning, mean: g.explanation, tts: g.pattern }));
+  } else {
+    deck = (VOCAB[S.level] || VOCAB.N5).map(v => ({ front: v.jp, back: v.r, mean: v.en, ex: v.ex, tts: v.r }));
+  }
+
+  practiceState.pool = shuffle(deck);
+  practiceState.idx = 0;
+  practiceState.srsState = { known: 0, mastered: 0, total: deck.length };
+
+  renderSRSFlashcardCard();
+}
+
+function renderSRSFlashcardCard() {
+  const { pool, idx, srsState } = practiceState;
+  const area = document.getElementById('practice-area');
+
+  if (idx >= pool.length) {
+    area.innerHTML = `
+      <div class="quiz-wrap"><div class="quiz-result-card">
+        <div class="quiz-result-score" style="color:var(--teal)">100%</div>
+        <div class="quiz-result-pct">Session Completed! 🎉 ${srsState.known} Reviewed · ${srsState.mastered} Mastered</div>
+        <button class="btn-primary" style="margin-top:16px" onclick="renderAdvancedFlashcards('${practiceState.subMode}')">Review Again</button>
+      </div></div>`;
+    return;
+  }
+
+  const c = pool[idx];
+
+  area.innerHTML = `
+    <div class="srs-fc-wrap">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted);margin-bottom:12px">
+        <span>Card ${idx + 1} of ${pool.length}</span>
+        <span>Known: <strong style="color:var(--teal)">${srsState.known}</strong> · Mastered: <strong style="color:var(--indigo)">${srsState.mastered}</strong></span>
+      </div>
+
+      <div class="srs-fc-card" id="srsFc" onclick="toggleSRSFlip()">
+        <div class="srs-fc-inner">
+          <div class="srs-fc-front">
+            <div style="font-size:54px;font-family:'Noto Sans JP',sans-serif;font-weight:700">${c.front}</div>
+            <div style="font-size:12px;opacity:0.6;margin-top:12px">Tap card to flip 🔄</div>
+          </div>
+          <div class="srs-fc-back">
+            <div style="font-size:28px;font-family:'Noto Sans JP',sans-serif;font-weight:700;color:var(--indigo);margin-bottom:6px">${c.back}</div>
+            <div style="font-size:16px;font-weight:600;color:var(--teal);margin-bottom:10px">${c.mean}</div>
+            ${c.ex ? `<div style="font-size:12px;color:var(--muted);text-align:center">${c.ex}</div>` : ''}
+            <button class="pnd-audio-btn" style="margin-top:14px" onclick="event.stopPropagation(); playJapaneseAudio('${c.tts}')">🔊 Listen</button>
           </div>
         </div>
-        <div style="display:flex;gap:10px;justify-content:center;margin-top:4px">
-          <button class="btn-secondary" onclick="window._fcAction('skip')">Skip</button>
-          <button style="padding:11px 24px;border-radius:999px;background:rgba(233,69,96,.15);color:var(--accent);border:1px solid rgba(233,69,96,.3);cursor:pointer" onclick="window._fcAction('again')">Again</button>
-          <button class="btn-primary" onclick="window._fcAction('know')">Know it ✓</button>
+      </div>
+
+      <div class="srs-btn-row">
+        <button class="srs-btn again" onclick="handleSRSAction('again')">🔴 Again<span>+0 XP</span></button>
+        <button class="srs-btn hard" onclick="handleSRSAction('hard')">🟡 Hard<span>+2 XP</span></button>
+        <button class="srs-btn good" onclick="handleSRSAction('good')">🟢 Good<span>+5 XP</span></button>
+        <button class="srs-btn easy" onclick="handleSRSAction('easy')">🔵 Mastered<span>+10 XP</span></button>
+      </div>
+    </div>`;
+}
+
+function toggleSRSFlip() {
+  const fc = document.getElementById('srsFc');
+  if (fc) {
+    fc.classList.toggle('flipped');
+    if (fc.classList.contains('flipped')) {
+      const c = practiceState.pool[practiceState.idx];
+      if (c && c.tts) playJapaneseAudio(c.tts);
+    }
+  }
+}
+
+function handleSRSAction(rating) {
+  if (rating === 'again') {
+    // Re-queue at end
+    const card = practiceState.pool[practiceState.idx];
+    practiceState.pool.push(card);
+  } else if (rating === 'hard') {
+    gainXP(2, 'Flashcard Hard');
+  } else if (rating === 'good') {
+    practiceState.srsState.known++;
+    gainXP(5, 'Flashcard Good');
+  } else if (rating === 'easy') {
+    practiceState.srsState.known++;
+    practiceState.srsState.mastered++;
+    gainXP(10, 'Flashcard Mastered');
+  }
+
+  practiceState.idx++;
+  renderSRSFlashcardCard();
+}
+
+// ── 6. LISTENING HUB ──
+function renderListeningHub(subMode = 'scenarios') {
+  const area = document.getElementById('practice-area');
+  const speed = practiceState.listeningSpeed || 1.0;
+  const scenarios = ADVANCED_PRACTICE_DATA.listeningScenarios;
+  const resources = LISTENING_RESOURCES[S.level] || LISTENING_RESOURCES.N5;
+
+  if (subMode === 'resources') {
+    area.innerHTML = `
+      <div class="listening-hub-wrap">
+        <div class="section-label" style="text-align:center;margin-bottom:20px">${S.level} Curated External Listening Resources</div>
+        <div class="listening-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">
+          ${resources.map(r => `
+            <a href="${r.url}" target="_blank" class="listen-card" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-decoration:none;display:block">
+              <div style="font-size:32px;margin-bottom:10px">${r.icon}</div>
+              <div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:4px">${r.title}</div>
+              <div style="font-size:11px;padding:2px 8px;border-radius:999px;background:var(--teal-soft);color:var(--teal);display:inline-block;margin-bottom:10px">${r.tag}</div>
+              <p style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px">${r.desc}</p>
+              <div style="font-size:12px;color:var(--teal);font-weight:600">Open External Resource →</div>
+            </a>`).join('')}
         </div>
       </div>`;
-  };
-  window._fcRender();
+    return;
+  }
+
+  area.innerHTML = `
+    <div class="listening-hub-wrap">
+      <!-- Speed Selector -->
+      <div class="speed-selector-bar">
+        <div style="font-weight:600;font-size:14px;color:var(--ink)">🎧 Audio Speed:</div>
+        <div style="display:flex;gap:6px">
+          <button class="speed-btn${speed === 0.75 ? ' active' : ''}" onclick="setListeningSpeed(0.75)">0.75x (Slow)</button>
+          <button class="speed-btn${speed === 1.0 ? ' active' : ''}" onclick="setListeningSpeed(1.0)">1.0x (Normal)</button>
+          <button class="speed-btn${speed === 1.25 ? ' active' : ''}" onclick="setListeningSpeed(1.25)">1.25x (Fast)</button>
+        </div>
+      </div>
+
+      <!-- Scenarios List -->
+      ${scenarios.map(sc => `
+        <div class="scenario-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:24px">${sc.icon}</span>
+              <h3 style="font-family:var(--font-display);font-size:18px;color:var(--ink);margin:0">${sc.title}</h3>
+            </div>
+            <button class="btn-primary" style="padding:6px 14px;font-size:12px" onclick="playScenarioFull('${sc.id}')">▶ Play Dialogue</button>
+          </div>
+
+          <!-- Dialogue Lines -->
+          <div class="scenario-dialogue-box">
+            ${sc.dialogue.map(line => `
+              <div class="dialogue-line">
+                <span class="speaker-badge">${line.speaker}</span>
+                <div class="dialogue-text">
+                  <div>${line.jp}</div>
+                  <div class="dialogue-sub">${line.en}</div>
+                </div>
+                <button class="pnd-mini-audio" style="font-size:16px" onclick="speakWithSpeed('${line.jp}', ${speed})" title="Replay line">🔊</button>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- Scenario Quiz Question -->
+          <div style="background:var(--surface);border-radius:var(--radius-sm);padding:14px;margin-top:12px">
+            <div style="font-size:12px;font-weight:600;color:var(--indigo);margin-bottom:6px">Comprehension Question:</div>
+            <div style="font-size:14px;font-weight:600;color:var(--ink);margin-bottom:10px">${sc.question.q}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="scQuiz_${sc.id}">
+              ${sc.question.opts.map((opt, i) => `
+                <button class="quiz-opt" onclick="checkScenarioQuestion('${sc.id}', ${i}, ${sc.question.ans})">${opt}</button>
+              `).join('')}
+            </div>
+            <div class="quiz-feedback" id="scFb_${sc.id}"></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+function setListeningSpeed(speed) {
+  practiceState.listeningSpeed = speed;
+  renderListeningHub('scenarios');
+}
+
+function speakWithSpeed(text, speed = 1.0) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ja-JP';
+  u.rate = 0.85 * speed;
+  window.speechSynthesis.speak(u);
+}
+
+function playScenarioFull(scenarioId) {
+  const sc = ADVANCED_PRACTICE_DATA.listeningScenarios.find(s => s.id === scenarioId);
+  if (!sc) return;
+
+  const fullText = sc.dialogue.map(d => d.jp).join('。 ');
+  speakWithSpeed(fullText, practiceState.listeningSpeed || 1.0);
+}
+
+function checkScenarioQuestion(scId, selectedIdx, correctIdx) {
+  const sc = ADVANCED_PRACTICE_DATA.listeningScenarios.find(s => s.id === scId);
+  const exp = (sc && sc.question) ? sc.question.exp : '';
+  const optsContainer = document.getElementById(`scQuiz_${scId}`);
+  const fb = document.getElementById(`scFb_${scId}`);
+  if (!optsContainer || !fb) return;
+
+  const btns = optsContainer.querySelectorAll('.quiz-opt');
+  btns.forEach(b => b.disabled = true);
+
+  const isCorrect = selectedIdx === correctIdx;
+  btns[selectedIdx].classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) btns[correctIdx].classList.add('correct');
+
+  if (isCorrect) gainXP(10, 'Listening Scenario');
+
+  fb.className = 'quiz-feedback show ' + (isCorrect ? 'ok' : 'bad');
+  fb.innerHTML = (isCorrect ? '✓ Correct! ' : '✗ ') + exp;
 }
 
 // ── TEST SETS ──
@@ -1106,108 +1774,348 @@ function showTestResults(score,correct,total,details,weak,title){
     </div>`;
 }
 
-// ── LIVE EXAM ──
-function renderExamLobby(){
-  const times={N5:'105',N4:'120'};
-  document.getElementById('examTimeLabel').textContent=times[S.level]+' min';
-  document.getElementById('exam-lobby').style.display='';
-  document.getElementById('exam-active').style.display='none';
-  document.getElementById('exam-results').style.display='none';
+// ── LIVE EXAM SYSTEM ──
+function renderExamLobby() {
+  const level = S.level || 'N5';
+  const labelEl = document.getElementById('examLevelLabel');
+  if (labelEl) labelEl.textContent = level;
+  
+  const select = document.getElementById('examSetSelect');
+  if (select) {
+    const availableSets = EXAM_SETS.filter(s => s.level === level);
+    if (!availableSets.length) {
+      select.innerHTML = `<option value="">No exam sets found for ${level}</option>`;
+    } else {
+      select.innerHTML = availableSets.map(s => `
+        <option value="${s.id}">${s.title} (${s.questions.length} Questions)</option>
+      `).join('');
+    }
+  }
+
+  updateExamLobbySpecs();
+
+  document.getElementById('exam-lobby').style.display = '';
+  document.getElementById('exam-active').style.display = 'none';
+  document.getElementById('exam-results').style.display = 'none';
 }
-function startLiveExam(){
-  const set=EXAM_SETS.find(s=>s.level===S.level)||EXAM_SETS[0];
-  if(!set){toast('No exam available for '+S.level);return;}
-  const allQs=shuffle(set.questions).map((q,i)=>({...q,id:i}));
-  S.currentExam={questions:allQs,answers:{},current:0,total:allQs.length,startTime:Date.now()};
-  const mins=S.level==='N4'?120:105;
-  S.currentExam.totalSeconds=mins*60;
-  S.currentExam.secondsLeft=mins*60;
-  document.getElementById('exam-lobby').style.display='none';
-  document.getElementById('exam-active').style.display='';
+
+function updateExamLobbySpecs() {
+  const level = S.level || 'N5';
+  const select = document.getElementById('examSetSelect');
+  const setId = select ? select.value : null;
+  const set = EXAM_SETS.find(s => s.id === setId) || EXAM_SETS.find(s => s.level === level) || EXAM_SETS[0];
+
+  if (set) {
+    const vCount = set.questions.filter(q => q.section === 'Vocabulary' || q.section === 'Vocab').length;
+    const gCount = set.questions.filter(q => q.section === 'Grammar').length;
+    const rCount = set.questions.filter(q => q.section === 'Reading').length;
+    const lCount = set.questions.filter(q => q.section === 'Listening').length;
+    
+    document.getElementById('examVocabCount').textContent = `${vCount} Qs`;
+    document.getElementById('examGrammarCount').textContent = `${gCount} Qs`;
+    document.getElementById('examReadingCount').textContent = `${rCount} Qs`;
+    const lisEl = document.getElementById('examListeningCount');
+    if (lisEl) lisEl.textContent = `${lCount} Qs`;
+    document.getElementById('examTimeLabel').textContent = `${level === 'N4' ? 120 : 105} min`;
+  }
+}
+
+function startLiveExam() {
+  const select = document.getElementById('examSetSelect');
+  const setId = select ? select.value : null;
+  const set = EXAM_SETS.find(s => s.id === setId) || EXAM_SETS.find(s => s.level === S.level) || EXAM_SETS[0];
+
+  if (!set) {
+    toast('No exam set available for ' + S.level);
+    return;
+  }
+
+  const allQs = set.questions.map((q, i) => ({ ...q, id: i }));
+  S.currentExam = {
+    setId: set.id,
+    setTitle: set.title,
+    questions: allQs,
+    answers: {},
+    flags: {},
+    current: 0,
+    total: allQs.length,
+    startTime: Date.now()
+  };
+  S.examAudioSpeed = 1.0;
+
+  const mins = S.level === 'N4' ? 120 : 105;
+  S.currentExam.totalSeconds = mins * 60;
+  S.currentExam.secondsLeft = mins * 60;
+
+  document.getElementById('exam-lobby').style.display = 'none';
+  document.getElementById('exam-active').style.display = '';
   renderExamQuestion();
   startExamTimer();
 }
-function renderExamQuestion(){
-  const ex=S.currentExam;
-  const q=ex.questions[ex.current];
-  const pct=Math.round(ex.current/ex.total*100);
-  document.getElementById('examQNum').textContent=`Q ${ex.current+1}/${ex.total}`;
-  document.getElementById('examProgFill').style.width=pct+'%';
-  document.getElementById('examBody').innerHTML=`
+
+function renderExamQuestion() {
+  const ex = S.currentExam;
+  if (!ex || !ex.questions || !ex.questions.length) return;
+
+  const q = ex.questions[ex.current];
+  const pct = Math.round(((ex.current + 1) / ex.total) * 100);
+
+  document.getElementById('examQNum').textContent = `Q ${ex.current + 1}/${ex.total}`;
+  document.getElementById('examProgFill').style.width = pct + '%';
+
+  const flagBtn = document.getElementById('examFlagBtn');
+  if (flagBtn) {
+    const isFlagged = ex.flags[ex.current];
+    flagBtn.textContent = isFlagged ? '🚩 Flagged' : '🚩 Flag';
+    flagBtn.style.background = isFlagged ? 'var(--gold-soft)' : '';
+    flagBtn.style.color = isFlagged ? 'var(--gold)' : '';
+  }
+
+  // Render Navigator Palette Grid
+  const navPalette = document.getElementById('examNavPalette');
+  if (navPalette) {
+    navPalette.innerHTML = ex.questions.map((item, idx) => {
+      const isAns = ex.answers[idx] !== undefined;
+      const isFlag = ex.flags[idx];
+      const isCur = idx === ex.current;
+      const isLis = item.section === 'Listening';
+
+      let bg = 'var(--surface)';
+      let color = 'var(--muted)';
+      let border = '1px solid var(--border)';
+
+      if (isAns) { bg = 'var(--indigo-soft)'; color = 'var(--indigo)'; border = '1px solid var(--indigo)'; }
+      if (isFlag) { bg = 'var(--gold-soft)'; color = 'var(--gold)'; border = '1px solid var(--gold)'; }
+      if (isCur) { border = '2px solid var(--teal)'; }
+
+      return `
+        <button style="width:34px;height:34px;border-radius:6px;font-size:11px;font-weight:600;background:${bg};color:${color};border:${border};cursor:pointer;display:flex;align-items:center;justify-content:center" onclick="jumpToExamQuestion(${idx})" title="${item.section}">
+          ${idx + 1}${isFlag ? '🚩' : isLis ? '🎧' : ''}
+        </button>`;
+    }).join('');
+  }
+
+  const isListening = q.section === 'Listening';
+
+  document.getElementById('examBody').innerHTML = `
     <div class="exam-q-card">
-      <div class="exam-q-num">Question ${ex.current+1}</div>
-      <div class="exam-q-section">${q.section}</div>
-      <div class="exam-q-text">${q.q.replace(/\n/g,'<br>')}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="exam-q-num">Question ${ex.current + 1} of ${ex.total}</div>
+        <div class="exam-q-section" style="margin-bottom:0;background:${isListening ? 'var(--teal-soft)' : 'var(--indigo-soft)'};color:${isListening ? 'var(--teal)' : 'var(--indigo)'}">
+          ${isListening ? '🎧 聴解 Listening' : (q.section || 'General')}
+        </div>
+      </div>
+
+      ${isListening ? `
+        <div class="exam-audio-card" style="background:var(--surface);border:1.5px solid var(--teal);border-radius:var(--radius-sm);padding:16px;margin-bottom:20px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <button class="btn-primary" id="examAudioPlayBtn" onclick="playExamAudioQuestion()" style="padding:10px 18px;font-size:13px;display:flex;align-items:center;gap:8px;background:var(--teal);border:none;">
+                🔊 Play Audio Prompt
+              </button>
+              <span style="font-size:12px;color:var(--muted);font-weight:600">Speed:</span>
+              <div style="display:inline-flex;gap:4px">
+                <button class="speed-btn${(S.examAudioSpeed || 1) === 0.75 ? ' active' : ''}" onclick="setExamAudioSpeed(0.75)">0.75x</button>
+                <button class="speed-btn${(S.examAudioSpeed || 1) === 1.0 ? ' active' : ''}" onclick="setExamAudioSpeed(1.0)">1.0x</button>
+                <button class="speed-btn${(S.examAudioSpeed || 1) === 1.25 ? ' active' : ''}" onclick="setExamAudioSpeed(1.25)">1.25x</button>
+              </div>
+            </div>
+            <button class="btn-secondary" style="font-size:12px;padding:6px 12px" onclick="toggleExamAudioScript()">📜 Toggle Transcript</button>
+          </div>
+          <div id="examAudioScriptBox" style="display:none;margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);font-size:13px;color:var(--ink);line-height:1.6">
+            <strong>Audio Dialogue Script:</strong><br>${(q.audioScript || q.q).replace(/\n/g, '<br>')}
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="exam-q-text">${q.q.replace(/\n/g, '<br>')}</div>
       <div class="exam-opts">
-        ${q.opts.map((o,i)=>`<button class="exam-opt${ex.answers[ex.current]===i?' selected':''}" onclick="selectExamAnswer(${i})">${String.fromCharCode(65+i)}. ${o}</button>`).join('')}
+        ${q.opts.map((o, i) => `
+          <button class="exam-opt${ex.answers[ex.current] === i ? ' selected' : ''}" onclick="selectExamAnswer(${i})">
+            ${String.fromCharCode(65 + i)}. ${o}
+          </button>
+        `).join('')}
       </div>
     </div>
     <div class="exam-nav">
-      <button class="btn-secondary" onclick="S.currentExam.current--;renderExamQuestion()" ${ex.current===0?'disabled':''}>← Prev</button>
-      <button class="btn-primary" onclick="${ex.current===ex.total-1?'submitExam(true)':'S.currentExam.current++;renderExamQuestion()'}">${ex.current===ex.total-1?'Submit Exam':'Next →'}</button>
+      <button class="btn-secondary" onclick="jumpToExamQuestion(${ex.current - 1})" ${ex.current === 0 ? 'disabled' : ''}>← Prev</button>
+      <button class="btn-primary" onclick="${ex.current === ex.total - 1 ? 'confirmSubmitExam()' : `jumpToExamQuestion(${ex.current + 1})`}">
+        ${ex.current === ex.total - 1 ? 'Submit Exam ✓' : 'Next →'}
+      </button>
     </div>`;
 }
-function selectExamAnswer(i){
-  S.currentExam.answers[S.currentExam.current]=i;
-  document.querySelectorAll('.exam-opt').forEach((b,bi)=>b.classList.toggle('selected',bi===i));
+
+function playExamAudioQuestion() {
+  const ex = S.currentExam;
+  if (!ex || !ex.questions || !ex.questions[ex.current]) return;
+  const q = ex.questions[ex.current];
+  const text = q.audioScript || q.q;
+
+  if (!('speechSynthesis' in window)) {
+    toast('Audio playback not supported in this browser');
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+  const btn = document.getElementById('examAudioPlayBtn');
+  if (btn) btn.textContent = '⏸ Playing...';
+
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ja-JP';
+  u.rate = S.examAudioSpeed || 1.0;
+
+  u.onend = () => {
+    if (btn) btn.textContent = '🔊 Play Audio Prompt';
+  };
+  u.onerror = () => {
+    if (btn) btn.textContent = '🔊 Play Audio Prompt';
+  };
+
+  window.speechSynthesis.speak(u);
 }
-function startExamTimer(){
-  if(S.examTimer)clearInterval(S.examTimer);
-  S.examTimer=setInterval(()=>{
-    S.currentExam.secondsLeft--;
-    const {secondsLeft}=S.currentExam;
-    const h=Math.floor(secondsLeft/3600);
-    const m=Math.floor((secondsLeft%3600)/60);
-    const s=secondsLeft%60;
-    const display=`${h?h+':':''}${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-    document.getElementById('examTimerDisplay').textContent=display;
-    if(secondsLeft<=300)document.getElementById('examTimerDisplay').style.color='var(--accent)';
-    if(secondsLeft<=0)submitExam(false);
-  },1000);
-}
-function submitExam(manual){
-  if(S.examTimer){clearInterval(S.examTimer);S.examTimer=null;}
-  const ex=S.currentExam;
-  const qs=ex.questions;
-  let correct=0;const weak={};const details=[];
-  qs.forEach((q,i)=>{
-    const right=ex.answers[i]===q.ans;
-    if(right)correct++;else{weak[q.section]=(weak[q.section]||0)+1;}
-    details.push({q:q.q,opts:q.opts,userAns:ex.answers[i],correct:q.ans,right,exp:q.exp||''});
+
+function setExamAudioSpeed(spd) {
+  S.examAudioSpeed = spd;
+  document.querySelectorAll('.speed-btn').forEach(b => {
+    b.classList.toggle('active', parseFloat(b.textContent) === spd);
   });
-  const score=Math.round(correct/qs.length*100);
-  const timeTaken=Math.round((Date.now()-ex.startTime)/1000);
-  const result={title:`${S.level} Live Exam`,score,correct,total:qs.length,weakAreas:Object.keys(weak),timeTaken,timestamp:new Date().toISOString()};
+  toast('Audio speed set to ' + spd + 'x');
+}
+
+function toggleExamAudioScript() {
+  const box = document.getElementById('examAudioScriptBox');
+  if (box) {
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  }
+}
+
+function jumpToExamQuestion(idx) {
+  if (!S.currentExam || idx < 0 || idx >= S.currentExam.total) return;
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  S.currentExam.current = idx;
+  renderExamQuestion();
+}
+
+function selectExamAnswer(i) {
+  S.currentExam.answers[S.currentExam.current] = i;
+  renderExamQuestion();
+}
+
+function toggleFlagCurrentQuestion() {
+  const ex = S.currentExam;
+  if (!ex) return;
+  ex.flags[ex.current] = !ex.flags[ex.current];
+  renderExamQuestion();
+}
+
+function confirmSubmitExam() {
+  const ex = S.currentExam;
+  if (!ex) return;
+
+  const answeredCount = Object.keys(ex.answers).length;
+  const unAnsCount = ex.total - answeredCount;
+  const flagCount = Object.keys(ex.flags).filter(k => ex.flags[k]).length;
+
+  if (unAnsCount > 0) {
+    if (!confirm(`You have ${unAnsCount} unanswered questions (${flagCount} flagged). Are you sure you want to submit?`)) {
+      return;
+    }
+  }
+  submitExam(true);
+}
+
+function startExamTimer() {
+  if (S.examTimer) clearInterval(S.examTimer);
+  S.examTimer = setInterval(() => {
+    S.currentExam.secondsLeft--;
+    const { secondsLeft } = S.currentExam;
+    const h = Math.floor(secondsLeft / 3600);
+    const m = Math.floor((secondsLeft % 3600) / 60);
+    const s = secondsLeft % 60;
+    const display = `${h ? h + ':' : ''}${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    const timerEl = document.getElementById('examTimerDisplay');
+    if (timerEl) {
+      timerEl.textContent = display;
+      if (secondsLeft <= 300) timerEl.style.color = 'var(--red)';
+    }
+    if (secondsLeft <= 0) submitExam(false);
+  }, 1000);
+}
+
+function submitExam(manual) {
+  if (S.examTimer) { clearInterval(S.examTimer); S.examTimer = null; }
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+  const ex = S.currentExam;
+  const qs = ex.questions;
+  let correct = 0; const weak = {}; const details = [];
+
+  qs.forEach((q, i) => {
+    const right = ex.answers[i] === q.ans;
+    if (right) correct++;
+    else { weak[q.section || 'General'] = (weak[q.section || 'General'] || 0) + 1; }
+    details.push({ q: q.q, opts: q.opts, userAns: ex.answers[i], correct: q.ans, right, exp: q.exp || '' });
+  });
+
+  const score = Math.round(correct / qs.length * 100);
+  const timeTaken = Math.round((Date.now() - ex.startTime) / 1000);
+  const result = {
+    title: ex.setTitle || `${S.level} Live Exam`,
+    score,
+    correct,
+    total: qs.length,
+    level: S.level,
+    weakAreas: Object.keys(weak),
+    timeTaken,
+    timestamp: new Date().toISOString()
+  };
+
   S.testResults.unshift(result);
-  Object.keys(weak).forEach(k=>{S.weakAreas[k]=(S.weakAreas[k]||0)+weak[k];});
-  api('PATCH','/api/state',{testResults:S.testResults,weakAreas:S.weakAreas});
-  gainXP(score*3);
-  document.getElementById('exam-active').style.display='none';
-  document.getElementById('exam-results').style.display='';
-  const pass=score>=60;
-  const suggestions={Vocabulary:'Review vocabulary with flashcards daily.',Grammar:'Practice grammar patterns with テ-form exercises.',Reading:'Read NHK Easy Japanese and practice comprehension.',Kanji:'Use spaced repetition for kanji memorization.'};
-  document.getElementById('exam-results').innerHTML=`
+  Object.keys(weak).forEach(k => { S.weakAreas[k] = (S.weakAreas[k] || 0) + weak[k]; });
+  api('PATCH', '/api/state', { testResults: S.testResults, weakAreas: S.weakAreas });
+  gainXP(score * 3, 'Live Exam Score');
+
+  document.getElementById('exam-active').style.display = 'none';
+  document.getElementById('exam-results').style.display = '';
+  const pass = score >= 60;
+  const suggestions = {
+    Vocabulary: 'Review vocabulary with flashcards daily.',
+    Grammar: 'Practice grammar patterns with テ-form exercises.',
+    Reading: 'Read NHK Easy Japanese and practice comprehension.',
+    Listening: 'Listen to Japanese podcasts and NHK Easy audio scenarios daily.',
+    Kanji: 'Use spaced repetition for kanji memorization.'
+  };
+
+  document.getElementById('exam-results').innerHTML = `
     <div class="results-wrap">
       <div class="results-header">
-        <div class="results-score" style="color:${pass?'var(--green)':'var(--accent)'}">${score}%</div>
-        <div style="color:var(--text2)">${correct}/${qs.length} Correct · ${Math.round(timeTaken/60)} min taken</div>
-        <span class="results-pass ${pass?'pass':'fail'}">${pass?'✓ PASS — おめでとうございます！':'✗ Not Passing Yet — がんばれ！'}</span>
-        <p style="color:var(--text2);font-size:14px;margin-top:12px">${score>=80?'Excellent! You are ready for the real JLPT!':score>=60?'Passing score. Keep up the good work!':'More practice needed. Focus on your weak areas.'}</p>
+        <div class="results-score" style="color:${pass ? 'var(--teal)' : 'var(--red)'}">${score}%</div>
+        <div style="color:var(--muted);font-size:14px">${correct}/${qs.length} Correct · ${Math.round(timeTaken / 60)} min taken</div>
+        <span class="results-pass ${pass ? 'pass' : 'fail'}">${pass ? '✓ PASS — おめでとうございます！' : '✗ Not Passing Yet — がんばれ！'}</span>
+        <p style="color:var(--muted);font-size:14px;margin-top:12px">${score >= 80 ? '🎉 Excellent! You are fully prepared for the real JLPT exam!' : score >= 60 ? '👍 Passing score! Keep up the practice to boost your speed.' : 'More practice recommended. Focus on weak areas listed below.'}</p>
       </div>
-      <div class="results-breakdown">
-        ${['Vocabulary','Grammar','Reading'].map(sec=>{
-          const qsSec=qs.filter(q=>q.section===sec);
-          const corSec=qsSec.filter((q,i)=>ex.answers[qs.indexOf(q)]===q.ans).length;
-          const pct=qsSec.length?Math.round(corSec/qsSec.length*100):0;
-          return`<div class="rb-card"><div class="rb-num" style="color:${pct>=60?'var(--green)':'var(--accent)'}">${pct}%</div><div class="rb-label">${sec}</div></div>`;
+      <div class="results-breakdown" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr));">
+        ${['Vocabulary', 'Grammar', 'Reading', 'Listening'].map(sec => {
+          const qsSec = qs.filter(q => q.section === sec || (sec === 'Vocabulary' && q.section === 'Vocab'));
+          const corSec = qsSec.filter(q => ex.answers[qs.indexOf(q)] === q.ans).length;
+          const pct = qsSec.length ? Math.round(corSec / qsSec.length * 100) : 0;
+          return `<div class="rb-card"><div class="rb-num" style="color:${pct >= 60 ? 'var(--teal)' : 'var(--red)'}">${pct}%</div><div class="rb-label">${sec}</div></div>`;
         }).join('')}
       </div>
-      ${Object.keys(weak).length?`<div class="weak-panel"><h3>🎯 AI Recommendations</h3>${Object.keys(weak).map(k=>`<div class="suggestion"><span class="sug-icon">💡</span><div><strong>${k}</strong><br>${suggestions[k]||'Review this section.'}</div></div>`).join('')}</div>`:''}
-      <h3 class="section-label">Question Review</h3>
-      ${details.map((d,i)=>`<div class="result-item"><span class="ri-status">${d.right?'✅':'❌'}</span><div class="ri-q"><div class="ri-q-text">${d.q.replace(/\n/g,'<br>')}</div><div class="ri-answers">Your: <span class="${d.right?'ri-correct':'ri-wrong'}">${d.opts[d.userAns]??'—'}</span> | Correct: <span class="ri-correct">${d.opts[d.correct]}</span>${d.exp?` · ${d.exp}`:''}</div></div></div>`).join('')}
+      ${Object.keys(weak).length ? `<div class="weak-panel"><h3>🎯 AI Recommendations</h3>${Object.keys(weak).map(k => `<div class="suggestion"><span class="sug-icon">💡</span><div><strong>${k}</strong><br>${suggestions[k] || 'Review this section.'}</div></div>`).join('')}</div>` : ''}
+      <h3 class="section-label" style="margin-top:28px">Question Review</h3>
+      ${details.map((d, i) => `
+        <div class="result-item">
+          <span class="ri-status">${d.right ? '✅' : '❌'}</span>
+          <div class="ri-q">
+            <div class="ri-q-text">${d.q.replace(/\n/g, '<br>')}</div>
+            <div class="ri-answers">Your: <span class="${d.right ? 'ri-correct' : 'ri-wrong'}">${d.opts[d.userAns] ?? 'Unanswered'}</span> | Correct: <span class="ri-correct">${d.opts[d.correct]}</span>${d.exp ? ` · ${d.exp}` : ''}</div>
+          </div>
+        </div>
+      `).join('')}
       <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
-        <button class="btn-primary" onclick="renderExamLobby()">Try Again</button>
-        <button class="btn-secondary" onclick="goto('dashboard')">Dashboard</button>
+        <button class="btn-primary" onclick="renderExamLobby()">Try Another Exam</button>
+        <button class="btn-secondary" onclick="goto('tracker')">View Overall Progress</button>
       </div>
     </div>`;
 }
@@ -1315,44 +2223,48 @@ function closeXPHistory() {
   if (modal) modal.style.display = 'none';
 }
 function markActivity(){
-  const now=new Date();
-  const key=`${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`;
-  const yDate=new Date(now); yDate.setDate(yDate.getDate()-1);
-  const yKey=`${yDate.getFullYear()}-${yDate.getMonth()+1}-${yDate.getDate()}`;
+  const key = todayKey();
+  const yKey = yesterdayKey();
   
-  if (S.lastStudied === key) return; // Already marked today
+  if (S.lastStudied === key) return; // Already marked today — no duplicate
   
   if (!S.lastStudied) {
     S.streak = 1;
   } else if (S.lastStudied === yKey) {
-    S.streak++;
+    S.streak++; // Consecutive day — extend streak
   } else {
-    S.streak = 1;
+    S.streak = 1; // Missed a day — reset streak
   }
   
   S.lastStudied = key;
   S.activityLog[key] = true;
   
-  if(document.getElementById('sideStreak')) document.getElementById('sideStreak').textContent = S.streak;
-  if(document.getElementById('streakNum')) document.getElementById('streakNum').textContent = S.streak;
+  // Update streak display everywhere
+  const streakEls = document.querySelectorAll('#streakNum, #sideStreak');
+  streakEls.forEach(el => { if(el) el.textContent = S.streak; });
   
+  // Persist to server or localStorage
   api('PATCH', '/api/state', { streak: S.streak, lastStudied: S.lastStudied, activityLog: S.activityLog });
+  
+  // Rebuild calendar to show today as active
+  if(document.getElementById('miniCal')) buildCal();
+  
+  console.log(`📅 Activity marked: ${key} | Streak: ${S.streak}`);
 }
 
 function checkStreak(){
   if (!S.lastStudied) return;
-  const now = new Date();
-  const key = `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`;
-  const yDate = new Date(now); yDate.setDate(yDate.getDate()-1);
-  const yKey = `${yDate.getFullYear()}-${yDate.getMonth()+1}-${yDate.getDate()}`;
+  const key = todayKey();
+  const yKey = yesterdayKey();
   
-  // If last studied was before yesterday, streak is lost (unless we studied today)
+  // If last studied was before yesterday, streak is lost
   if (S.lastStudied !== key && S.lastStudied !== yKey) {
     S.streak = 0;
     api('PATCH', '/api/state', { streak: 0 });
   }
   
-  if(document.getElementById('streakNum')) document.getElementById('streakNum').textContent = S.streak;
+  const streakEls = document.querySelectorAll('#streakNum, #sideStreak');
+  streakEls.forEach(el => { if(el) el.textContent = S.streak; });
 }
 
 // ── TOAST ──
@@ -1382,37 +2294,130 @@ function setMobActive(el){
 }
 
 // ── MODAL ──
-function closeModal(){document.getElementById('modalOverlay').classList.remove('open');}
+function closeModal(){
+  const el = document.getElementById('modalOverlay');
+  if(el){
+    el.style.display = 'none';
+    el.classList.remove('open');
+  }
+}
 
 // ── TRACKER PAGE ──
-function renderTracker(){
-  const vocab=VOCAB[S.level]||[];
-  const grammar=GRAMMAR[S.level]||[];
-  const kanji=KANJI[S.level]||[];
-  const tests=EXAM_SETS.filter(s=>s.level===S.level);
-  
-  const vDone=Object.keys(S.progress).filter(k=>k.startsWith('voc-')&&S.progress[k]&&k.endsWith('_'+S.level)).length;
-  const gDone=Object.keys(S.progress).filter(k=>k.startsWith('gram-')&&S.progress[k]&&k.endsWith('_'+S.level)).length;
-  const kDone=Object.keys(S.learnedKanji).filter(k=>k.endsWith('_'+S.level)&&S.learnedKanji[k]).length;
-  const tDone=S.testResults.filter(r=>r.level===S.level||r.title.includes(S.level)).length;
+function renderTracker() {
+  const level = S.level || 'N5';
+  const vocab = VOCAB[level] || VOCAB.N5;
+  const grammar = GRAMMAR[level] || GRAMMAR.N5;
+  const kanji = KANJI[level] || KANJI.N5;
+  const tests = EXAM_SETS.filter(s => s.level === level);
 
-  document.getElementById('tpVocNum').textContent=`${vDone}/${vocab.length}`;
-  document.getElementById('tpVocBar').style.width=vocab.length?Math.min(100,(vDone/vocab.length)*100)+'%':'0%';
-  document.getElementById('tpVocPct').textContent=vocab.length?Math.round((vDone/vocab.length)*100)+'%':'0%';
+  const vDone = Object.keys(S.progress).filter(k => (k.startsWith('voc-') || k.startsWith('v-')) && S.progress[k]).length;
+  const gDone = Object.keys(S.progress).filter(k => (k.startsWith('gram-') || k.startsWith('g-')) && S.progress[k]).length;
+  const kDone = Object.keys(S.learnedKanji).filter(k => S.learnedKanji[k]).length;
+  const tDone = (S.testResults || []).filter(r => r.level === level || (r.title && r.title.includes(level))).length;
 
-  document.getElementById('tpGramNum').textContent=`${gDone}/${grammar.length}`;
-  document.getElementById('tpGramBar').style.width=grammar.length?Math.min(100,(gDone/grammar.length)*100)+'%':'0%';
-  document.getElementById('tpGramPct').textContent=grammar.length?Math.round((gDone/grammar.length)*100)+'%':'0%';
+  const vPct = vocab.length ? Math.min(100, Math.round((vDone / vocab.length) * 100)) : 0;
+  const gPct = grammar.length ? Math.min(100, Math.round((gDone / grammar.length) * 100)) : 0;
+  const kPct = kanji.length ? Math.min(100, Math.round((kDone / kanji.length) * 100)) : 0;
+  const tPct = tests.length ? Math.min(100, Math.round((tDone / tests.length) * 100)) : 0;
 
-  document.getElementById('tpKanjiNum').textContent=`${kDone}/${kanji.length}`;
-  document.getElementById('tpKanjiBar').style.width=kanji.length?Math.min(100,(kDone/kanji.length)*100)+'%':'0%';
-  document.getElementById('tpKanjiPct').textContent=kanji.length?Math.round((kDone/kanji.length)*100)+'%':'0%';
+  const overallMastery = Math.round((vPct + gPct + kPct + tPct) / 4);
 
-  document.getElementById('tpTestNum').textContent=`${tDone}/${tests.length}`;
-  document.getElementById('tpTestBar').style.width=tests.length?Math.min(100,(tDone/tests.length)*100)+'%':'0%';
-  document.getElementById('tpTestPct').textContent=tests.length?Math.round((tDone/tests.length)*100)+'%':'0%';
+  // Overview Header Cards
+  const trLevelLabel = document.getElementById('trLevelLabel');
+  if (trLevelLabel) trLevelLabel.textContent = `JLPT ${level}`;
+
+  const trOverallMastery = document.getElementById('trOverallMastery');
+  if (trOverallMastery) trOverallMastery.textContent = `${overallMastery}%`;
+
+  const trTotalXP = document.getElementById('trTotalXP');
+  if (trTotalXP) trTotalXP.textContent = `${S.xp || 0} XP`;
+
+  const trStudyTime = document.getElementById('trStudyTime');
+  if (trStudyTime) {
+    const mins = Math.floor((S.studyTimeSeconds || 0) / 60);
+    const hrs = Math.floor(mins / 60);
+    const remMins = mins % 60;
+    trStudyTime.textContent = hrs > 0 ? `${hrs}h ${remMins}m` : `${mins}m`;
+  }
+
+  // Category Progress Bars
+  const elVocNum = document.getElementById('tpVocNum');
+  if (elVocNum) elVocNum.textContent = `${vDone}/${vocab.length}`;
+  const elVocBar = document.getElementById('tpVocBar');
+  if (elVocBar) elVocBar.style.width = vPct + '%';
+  const elVocPct = document.getElementById('tpVocPct');
+  if (elVocPct) elVocPct.textContent = vPct + '%';
+
+  const elGramNum = document.getElementById('tpGramNum');
+  if (elGramNum) elGramNum.textContent = `${gDone}/${grammar.length}`;
+  const elGramBar = document.getElementById('tpGramBar');
+  if (elGramBar) elGramBar.style.width = gPct + '%';
+  const elGramPct = document.getElementById('tpGramPct');
+  if (elGramPct) elGramPct.textContent = gPct + '%';
+
+  const elKanjiNum = document.getElementById('tpKanjiNum');
+  if (elKanjiNum) elKanjiNum.textContent = `${kDone}/${kanji.length}`;
+  const elKanjiBar = document.getElementById('tpKanjiBar');
+  if (elKanjiBar) elKanjiBar.style.width = kPct + '%';
+  const elKanjiPct = document.getElementById('tpKanjiPct');
+  if (elKanjiPct) elKanjiPct.textContent = kPct + '%';
+
+  const elTestNum = document.getElementById('tpTestNum');
+  if (elTestNum) elTestNum.textContent = `${tDone}/${tests.length}`;
+  const elTestBar = document.getElementById('tpTestBar');
+  if (elTestBar) elTestBar.style.width = tPct + '%';
+  const elTestPct = document.getElementById('tpTestPct');
+  if (elTestPct) elTestPct.textContent = tPct + '%';
 
   renderChecklist();
+  renderExamHistory();
+}
+
+function renderExamHistory() {
+  const container = document.getElementById('examHistoryContainer');
+  if (!container) return;
+
+  const results = S.testResults || [];
+  if (!results.length) {
+    container.innerHTML = `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;text-align:center;color:var(--muted);font-size:14px">No exam attempts recorded yet. Take a Live Exam or Mock Test to log your results!</div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left">
+        <thead>
+          <tr style="background:var(--surface);border-bottom:1px solid var(--border);color:var(--muted)">
+            <th style="padding:12px 16px">Date</th>
+            <th style="padding:12px 16px">Exam Set</th>
+            <th style="padding:12px 16px">Score</th>
+            <th style="padding:12px 16px">Status</th>
+            <th style="padding:12px 16px">Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${results.slice(0, 10).map(r => {
+            const dateStr = r.timestamp ? new Date(r.timestamp).toLocaleDateString() : 'Recent';
+            const pass = (r.score >= 60);
+            const timeMin = r.timeTaken ? Math.round(r.timeTaken / 60) + ' min' : '—';
+            return `
+              <tr style="border-bottom:1px solid var(--border2)">
+                <td style="padding:12px 16px;color:var(--muted)">${dateStr}</td>
+                <td style="padding:12px 16px;font-weight:600;color:var(--ink)">${r.title || 'Live Exam'}</td>
+                <td style="padding:12px 16px;font-weight:700;color:${pass ? 'var(--teal)' : 'var(--red)'}">${r.score}% (${r.correct}/${r.total})</td>
+                <td style="padding:12px 16px">
+                  <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:${pass ? 'var(--teal-soft)' : 'var(--red-soft)'};color:${pass ? 'var(--teal)' : 'var(--red)'}">
+                    ${pass ? '✓ PASS' : '✗ FAIL'}
+                  </span>
+                </td>
+                <td style="padding:12px 16px;color:var(--muted)">${timeMin}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
 function renderChecklist(){
@@ -1552,54 +2557,243 @@ async function executeReset(){
   }
 }
 
-// ── REMINDERS PAGE ──
-function renderReminders(){
-  const list=document.getElementById('remSlotsList');
-  if(!reminders.length){
-    // default set
-    reminders=[
-      {id:1,time:'07:00',label:'Morning flashcards',enabled:true},
-      {id:2,time:'07:10',label:'New vocab / grammar',enabled:true},
-      {id:3,time:'13:00',label:'Afternoon writing drill',enabled:false},
-      {id:4,time:'21:00',label:'Evening review + quiz',enabled:true}
+// ── STUDY REMINDERS & NOTIFICATION ENGINE ──
+let reminderCheckInterval = null;
+let triggeredMinutes = {};
+
+function initReminderEngine() {
+  if (reminderCheckInterval) clearInterval(reminderCheckInterval);
+  reminderCheckInterval = setInterval(checkStudyReminders, 10000); // Check every 10 seconds
+  checkStudyReminders();
+  updateNotifStatusBadge();
+}
+
+function updateNotifStatusBadge() {
+  const badge = document.getElementById('notifStatusBadge');
+  if (!badge) return;
+  if (!('Notification' in window)) {
+    badge.textContent = 'Not Supported';
+    badge.style.background = 'var(--red-soft)';
+    badge.style.color = 'var(--red)';
+  } else if (Notification.permission === 'granted') {
+    badge.textContent = 'Active 🟢';
+    badge.style.background = 'var(--teal-soft)';
+    badge.style.color = 'var(--teal)';
+  } else if (Notification.permission === 'denied') {
+    badge.textContent = 'Blocked 🔴';
+    badge.style.background = 'var(--red-soft)';
+    badge.style.color = 'var(--red)';
+  } else {
+    badge.textContent = 'Permission Needed 🟡';
+    badge.style.background = 'var(--gold-soft)';
+    badge.style.color = 'var(--gold)';
+  }
+}
+
+function checkStudyReminders() {
+  if (!reminders || !reminders.length) return;
+
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const currentTimeStr = `${hours}:${minutes}`;
+  const dateStr = now.toISOString().split('T')[0];
+
+  reminders.forEach(r => {
+    if (!r.enabled) return;
+
+    if (r.time === currentTimeStr) {
+      const triggerKey = `${dateStr}_${currentTimeStr}_${r.id}`;
+      if (!triggeredMinutes[triggerKey]) {
+        triggeredMinutes[triggerKey] = true;
+        triggerReminderNotification(r);
+      }
+    }
+  });
+}
+
+function triggerReminderNotification(r) {
+  // 1. Web Audio Chime Sound
+  playNotificationSound();
+
+  // 2. In-App Toast & Modal
+  toast(`⏰ Study Reminder: ${r.label} (${r.time})!`);
+  showReminderModal(r);
+
+  // 3. Browser Native Notification
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then(reg => {
+          reg.showNotification('日本語 JLPT Study Hub 🔔', {
+            body: `⏰ Time for: ${r.label} (${r.time})\nLet's get back to practice!`,
+            icon: '/img/icon-192.jpg',
+            badge: '/img/icon-192.jpg',
+            vibrate: [200, 100, 200],
+            tag: `reminder-${r.id}`
+          });
+        });
+      } else {
+        new Notification('日本語 JLPT Study Hub 🔔', {
+          body: `⏰ Time for: ${r.label} (${r.time})\nLet's get back to practice!`,
+          icon: '/img/icon-192.jpg'
+        });
+      }
+    } catch (e) {
+      console.warn('Native notification trigger:', e);
+    }
+  }
+}
+
+function playNotificationSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    
+    const playNote = (freq, startTime, duration) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, startTime);
+      gain.gain.setValueAtTime(0.3, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+
+    const now = ctx.currentTime;
+    playNote(659.25, now, 0.4);        // E5
+    playNote(880.00, now + 0.18, 0.6);  // A5
+  } catch (e) {
+    console.warn('Web audio chime blocked:', e);
+  }
+}
+
+function showReminderModal(r) {
+  const modalBox = document.getElementById('modalBox');
+  const modalOverlay = document.getElementById('modalOverlay');
+  if (!modalBox || !modalOverlay) return;
+
+  modalBox.innerHTML = `
+    <div style="text-align:center;padding:10px">
+      <div style="font-size:52px;margin-bottom:12px">⏰</div>
+      <h2 style="font-family:var(--font-display);font-size:22px;margin-bottom:8px;color:var(--ink)">Study Reminder!</h2>
+      <div style="font-size:16px;font-weight:600;color:var(--teal);margin-bottom:12px">${r.label} (${r.time})</div>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:24px;line-height:1.5">Consistent daily practice is key to mastering JLPT!</p>
+      <div style="display:flex;gap:10px">
+        <button class="btn-secondary" style="flex:1" onclick="closeModal()">Dismiss</button>
+        <button class="btn-primary" style="flex:1" onclick="closeModal(); goto('practice', null);">Start Practice 🚀</button>
+      </div>
+    </div>
+  `;
+  modalOverlay.style.display = 'flex';
+}
+
+function testNotificationNow() {
+  if (!('Notification' in window)) {
+    toast('Browser does not support notifications.');
+    return;
+  }
+
+  if (Notification.permission === 'granted') {
+    triggerReminderNotification({ id: 999, time: 'Now', label: 'Test Notification' });
+    toast('🔔 Test notification & sound chime triggered!');
+  } else {
+    Notification.requestPermission().then(p => {
+      updateNotifStatusBadge();
+      if (p === 'granted') {
+        triggerReminderNotification({ id: 999, time: 'Now', label: 'Test Notification' });
+        toast('🔔 Notifications enabled & test triggered!');
+      } else {
+        toast('⚠️ Notification permission blocked by browser.');
+      }
+    });
+  }
+}
+
+function renderReminders() {
+  const list = document.getElementById('remSlotsList');
+  if (!list) return;
+
+  if (!reminders.length) {
+    reminders = [
+      { id: 1, time: '08:00', label: 'Morning vocabulary practice!', enabled: true },
+      { id: 2, time: '21:00', label: 'Evening grammar review!', enabled: true }
     ];
   }
-  list.innerHTML=reminders.map(r=>`
-    <div class="rem-slot">
-      <div class="rem-slot-time">${r.time}</div>
-      <div class="rem-slot-label">${r.label}</div>
-      <label class="toggle">
-        <input type="checkbox" ${r.enabled?'checked':''} onchange="toggleReminder(${r.id})">
-        <span class="toggle-track"></span>
-      </label>
+
+  list.innerHTML = reminders.map(r => `
+    <div class="rem-slot" style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border2)">
+      <div class="rem-slot-time" style="font-family:var(--font-mono);font-size:18px;font-weight:700;color:var(--teal);min-width:64px">${r.time}</div>
+      <div class="rem-slot-label" style="flex:1;font-size:14px;font-weight:500;color:var(--ink)">${r.label}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label class="toggle">
+          <input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="toggleReminder(${r.id})">
+          <span class="toggle-track"></span>
+        </label>
+        <button class="btn-secondary" style="padding:4px 8px;font-size:12px;color:var(--red);border-color:rgba(192,57,43,0.3)" onclick="deleteReminder(${r.id})" title="Delete">🗑️</button>
+      </div>
     </div>
   `).join('');
+
+  updateNotifStatusBadge();
 }
 
-async function addReminder(){
-  const t=document.getElementById('remTimeInp').value;
-  const l=document.getElementById('remLabelInp').value || 'Study Session';
-  if(!t)return;
-  const r={id:Date.now(),time:t,label:l,enabled:true};
+async function addReminder() {
+  const t = document.getElementById('remTimeInp').value;
+  const l = document.getElementById('remLabelInp').value || 'Study Session';
+  if (!t) {
+    toast('Please select a valid time first!');
+    return;
+  }
+
+  const r = { id: Date.now(), time: t, label: l, enabled: true };
   reminders.push(r);
-  document.getElementById('remLabelInp').value='';
-  await api('PATCH','/api/state',{reminders});
+  document.getElementById('remLabelInp').value = '';
+  await api('PATCH', '/api/state', { reminders });
   renderReminders();
+  renderDashboard();
+  toast(`Reminder added for ${t}! ⏰`);
 }
 
-async function toggleReminder(id){
-  const r=reminders.find(x=>x.id===id);
-  if(r){
-    r.enabled=!r.enabled;
-    await api('PATCH','/api/state',{reminders});
+async function deleteReminder(id) {
+  reminders = reminders.filter(x => x.id !== id);
+  await api('PATCH', '/api/state', { reminders });
+  renderReminders();
+  renderDashboard();
+  toast('Reminder deleted!');
+}
+
+async function toggleReminder(id) {
+  const r = reminders.find(x => x.id === id);
+  if (r) {
+    r.enabled = !r.enabled;
+    await api('PATCH', '/api/state', { reminders });
     renderReminders();
+    renderDashboard();
+    toast(r.enabled ? 'Reminder enabled ⏰' : 'Reminder disabled ⏸️');
   }
 }
 
-function enableNotifs(){
-  if(!('Notification' in window))alert('This browser does not support notifications.');
-  else if(Notification.permission==='granted')toast('Notifications already active!');
-  else Notification.requestPermission().then(p=>{if(p==='granted')toast('Notifications enabled! 🔔');});
+function enableNotifs() {
+  if (!('Notification' in window)) {
+    alert('This browser does not support notifications.');
+    return;
+  }
+  
+  if (Notification.permission === 'granted') {
+    toast('Notifications are already active! 🔔');
+    updateNotifStatusBadge();
+  } else {
+    Notification.requestPermission().then(p => {
+      updateNotifStatusBadge();
+      if (p === 'granted') toast('Notifications enabled! 🔔');
+      else toast('Notifications were denied or dismissed.');
+    });
+  }
 }
 
 // ── RESOURCE PAGE ──

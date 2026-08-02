@@ -269,6 +269,7 @@
   <div class="page-header"><h1 class="page-title">📖 Learn <span id="learnLevelBadge" style="font-size:16px;color:var(--muted)">N5</span></h1></div>
   <div class="learn-tabs" id="learnTabs">
     <button class="tab-btn active" onclick="learnTab('writing',this)">✍️ Writing Systems</button>
+    <button class="tab-btn" onclick="learnTab('pronouns',this)">👉 Pronouns &amp; Demonstratives</button>
     <button class="tab-btn" onclick="learnTab('vocab',this)">📚 Vocabulary</button>
     <button class="tab-btn" onclick="learnTab('grammar',this)">🔤 Grammar</button>
     <button class="tab-btn" onclick="learnTab('kanji',this)">漢 Kanji</button>
@@ -281,6 +282,442 @@
     </div>
     <div id="hiragana-grid" class="kana-grid"></div>
     <div id="katakana-grid" class="kana-grid" style="display:none"></div>
+  </div>
+  <!-- Pronouns & Demonstratives -->
+  <div class="learn-section" id="ls-pronouns">
+    <div class="pnd-header" style="margin-bottom: 24px;">
+      <h2 style="font-family:var(--font-display); font-size:24px; color:var(--ink); margin-bottom:8px;">
+        👉 Pronouns &amp; Demonstratives (代名詞・指示代名詞)
+      </h2>
+      <p style="color:var(--muted); font-size:14px; line-height:1.5;">
+        Master Japanese personal pronouns, plural forms, Ko-so-a-do demonstratives, and essential question words for JLPT N5. Click on any speaker icon 🔊 to hear native audio pronunciation.
+      </p>
+    </div>
+
+    <!-- 1. Personal Pronouns -->
+    <div class="pnd-card">
+      <div class="pnd-card-header">
+        <h3 class="pnd-card-title">1. Personal Pronouns (人称代名詞)</h3>
+        <span class="pnd-badge indigo">First, Second &amp; Third Person</span>
+      </div>
+      
+      <div style="overflow-x:auto;">
+        <table class="pnd-table">
+          <thead>
+            <tr>
+              <th>Japanese</th>
+              <th>Romaji</th>
+              <th>Meaning</th>
+              <th>Formality &amp; Usage Context</th>
+              <th>Audio</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong class="jp-text">私</strong></td>
+              <td><code>watashi</code></td>
+              <td>I / me (neutral/polite)</td>
+              <td>Standard polite pronoun. Used by everyone in polite speech; common casual choice for females.</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('わたし')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">私</strong></td>
+              <td><code>watakushi</code></td>
+              <td>I / me (very formal)</td>
+              <td>Formal business conversations, official speeches, and formal announcements.</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('わたくし')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">僕</strong></td>
+              <td><code>boku</code></td>
+              <td>I / me (male, casual-polite)</td>
+              <td>Used by males in informal and semi-formal contexts. Modest and polite-casual.</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('ぼく')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">俺</strong></td>
+              <td><code>ore</code></td>
+              <td>I / me (male, rough/casual)</td>
+              <td>Casual male pronoun with friends, family, and peers. Do not use in formal situations.</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('おれ')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">あなた</strong></td>
+              <td><code>anata</code></td>
+              <td>you</td>
+              <td>Standard "you". Note: Avoid overusing when you know someone's name! Use [Name]-san instead.</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('あなた')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">君</strong></td>
+              <td><code>kimi</code></td>
+              <td>you (casual)</td>
+              <td>Used towards friends, children, or subordinates by males or senior speakers.</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('きみ')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">彼</strong></td>
+              <td><code>kare</code></td>
+              <td>he / him</td>
+              <td>Refers to a male third person. Can also mean "boyfriend" depending on context.</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('かれ')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">彼女</strong></td>
+              <td><code>kanojo</code></td>
+              <td>she / her</td>
+              <td>Refers to a female third person. Can also mean "girlfriend" depending on context.</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('かのじょ')" title="Listen">🔊</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 2. Plural Forms -->
+    <div class="pnd-card">
+      <div class="pnd-card-header">
+        <h3 class="pnd-card-title">2. Plural Forms (複数形)</h3>
+        <span class="pnd-badge teal">Group Pronouns &amp; Suffixes</span>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table class="pnd-table">
+          <thead>
+            <tr>
+              <th>Japanese</th>
+              <th>Romaji</th>
+              <th>Meaning</th>
+              <th>Usage Notes</th>
+              <th>Audio</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong class="jp-text">私たち</strong></td>
+              <td><code>watashi-tachi</code></td>
+              <td>we / us</td>
+              <td>Standard polite "we" for any group containing yourself.</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('わたしたち')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">僕たち</strong></td>
+              <td><code>boku-tachi</code></td>
+              <td>we (male, casual)</td>
+              <td>Casual "we" used by male speakers and their group.</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('ぼくたち')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">あなたたち</strong></td>
+              <td><code>anata-tachi</code></td>
+              <td>you all</td>
+              <td>Plural form of "you" when addressing a group of people.</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('あなたたち')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">君たち</strong></td>
+              <td><code>kimi-tachi</code></td>
+              <td>you all (casual)</td>
+              <td>Casual plural "you" addressing peers, children, or students.</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('きみたち')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">彼ら</strong></td>
+              <td><code>karera</code></td>
+              <td>they (male/mixed)</td>
+              <td>Plural "they" for a group of males or mixed-gender group. Uses suffix 〜ら (-ra).</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('かれら')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">彼女たち</strong></td>
+              <td><code>kanojo-tachi</code></td>
+              <td>they (female)</td>
+              <td>Plural "they" strictly for an all-female group.</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('かのじょたち')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">みんな / 皆さん</strong></td>
+              <td><code>minna / minasan</code></td>
+              <td>everyone (minasan = polite)</td>
+              <td>"みんな" (minna) is casual; "皆さん" (minasan) is polite.</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('みんな、みなさん')" title="Listen">🔊</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 3. Demonstratives — こそあど (Ko-so-a-do) -->
+    <div class="pnd-card">
+      <div class="pnd-card-header">
+        <h3 class="pnd-card-title">3. Demonstratives — こそあど (Ko-so-a-do)</h3>
+        <span class="pnd-badge gold">Core Distance System</span>
+      </div>
+
+      <!-- Distance Rules Overview Grid -->
+      <div class="pnd-rule-grid">
+        <div class="pnd-rule-box ko">
+          <div class="pnd-rule-tag">こ (Ko-prefix)</div>
+          <div class="pnd-rule-desc"><strong>Near Speaker</strong> — Close to the person speaking (this / here).</div>
+        </div>
+        <div class="pnd-rule-box so">
+          <div class="pnd-rule-tag">そ (So-prefix)</div>
+          <div class="pnd-rule-desc"><strong>Near Listener</strong> — Close to the listener (that / there).</div>
+        </div>
+        <div class="pnd-rule-box a">
+          <div class="pnd-rule-tag">あ (A-prefix)</div>
+          <div class="pnd-rule-desc"><strong>Far from Both</strong> — Away from speaker &amp; listener (that over there).</div>
+        </div>
+        <div class="pnd-rule-box do">
+          <div class="pnd-rule-tag">ど (Do-prefix)</div>
+          <div class="pnd-rule-desc"><strong>Question Word</strong> — Asking which / where / who.</div>
+        </div>
+      </div>
+
+      <!-- Ko-so-a-do Table -->
+      <div style="overflow-x:auto;">
+        <table class="pnd-table pnd-matrix-table">
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th class="head-ko">ko (this)</th>
+              <th class="head-so">so (that)</th>
+              <th class="head-a">a (that over there)</th>
+              <th class="head-do">do (which)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Thing</strong></td>
+              <td>
+                <div class="jp-cell"><strong>これ</strong> <small>(kore)</small> <button onclick="playJapaneseAudio('これ')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+              <td>
+                <div class="jp-cell"><strong>それ</strong> <small>(sore)</small> <button onclick="playJapaneseAudio('それ')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+              <td>
+                <div class="jp-cell"><strong>あれ</strong> <small>(are)</small> <button onclick="playJapaneseAudio('あれ')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+              <td>
+                <div class="jp-cell"><strong>どれ</strong> <small>(dore)</small> <button onclick="playJapaneseAudio('どれ')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Place</strong></td>
+              <td>
+                <div class="jp-cell"><strong>ここ</strong> <small>(koko)</small> <button onclick="playJapaneseAudio('ここ')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+              <td>
+                <div class="jp-cell"><strong>そこ</strong> <small>(soko)</small> <button onclick="playJapaneseAudio('そこ')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+              <td>
+                <div class="jp-cell"><strong>あそこ</strong> <small>(asoko)</small> <button onclick="playJapaneseAudio('あそこ')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+              <td>
+                <div class="jp-cell"><strong>どこ</strong> <small>(doko)</small> <button onclick="playJapaneseAudio('どこ')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Direction / Polite</strong></td>
+              <td>
+                <div class="jp-cell"><strong>こちら</strong> <small>(kochira)</small> <button onclick="playJapaneseAudio('こちら')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+              <td>
+                <div class="jp-cell"><strong>そちら</strong> <small>(sochira)</small> <button onclick="playJapaneseAudio('そちら')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+              <td>
+                <div class="jp-cell"><strong>あちら</strong> <small>(achira)</small> <button onclick="playJapaneseAudio('あちら')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+              <td>
+                <div class="jp-cell"><strong>どちら</strong> <small>(dochira)</small> <button onclick="playJapaneseAudio('どちら')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>+ Noun</strong></td>
+              <td>
+                <div class="jp-cell"><strong>この</strong> <small>(kono)</small> <button onclick="playJapaneseAudio('この')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+              <td>
+                <div class="jp-cell"><strong>その</strong> <small>(sono)</small> <button onclick="playJapaneseAudio('その')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+              <td>
+                <div class="jp-cell"><strong>あの</strong> <small>(ano)</small> <button onclick="playJapaneseAudio('あの')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+              <td>
+                <div class="jp-cell"><strong>どの</strong> <small>(dono)</small> <button onclick="playJapaneseAudio('どの')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Kind/type</strong></td>
+              <td>
+                <div class="jp-cell"><strong>こんな</strong> <small>(konna)</small> <button onclick="playJapaneseAudio('こんな')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+              <td>
+                <div class="jp-cell"><strong>そんな</strong> <small>(sonna)</small> <button onclick="playJapaneseAudio('そんな')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+              <td>
+                <div class="jp-cell"><strong>あんな</strong> <small>(anna)</small> <button onclick="playJapaneseAudio('あんな')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+              <td>
+                <div class="jp-cell"><strong>どんな</strong> <small>(donna)</small> <button onclick="playJapaneseAudio('どんな')" class="pnd-mini-audio">🔊</button></div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4. Question Words -->
+    <div class="pnd-card">
+      <div class="pnd-card-header">
+        <h3 class="pnd-card-title">4. Question Words (疑問詞)</h3>
+        <span class="pnd-badge red">Interrogatives</span>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table class="pnd-table">
+          <thead>
+            <tr>
+              <th>Japanese</th>
+              <th>Romaji</th>
+              <th>Meaning</th>
+              <th>Example Sentence</th>
+              <th>Audio</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong class="jp-text">どこ</strong></td>
+              <td><code>doko</code></td>
+              <td>where</td>
+              <td>駅は<strong>どこ</strong>ですか。(Where is the station?)</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('どこ')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">いつ</strong></td>
+              <td><code>itsu</code></td>
+              <td>when</td>
+              <td>テストは<strong>いつ</strong>ですか。(When is the test?)</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('いつ')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">どう / どのように</strong></td>
+              <td><code>dou / dono you ni</code></td>
+              <td>how</td>
+              <td>日本はどうですか。(How is Japan?) / どのように書きますか。(How do you write it?)</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('どう、どのように')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">なぜ / どうして</strong></td>
+              <td><code>naze / doushite</code></td>
+              <td>why</td>
+              <td><strong>なぜ</strong>遅れましたか。(Why were you late?) / <strong>どうして</strong>ですか。(Why is that?)</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('なぜ、どうして')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">だれ / どなた</strong></td>
+              <td><code>dare / donata</code></td>
+              <td>who (donata = polite)</td>
+              <td>あの人は<strong>だれ</strong>ですか。(Who is that person?) / <strong>どなた</strong>ですか。(Who is it? [polite])</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('だれ、どなた')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">何</strong></td>
+              <td><code>nani / nan</code></td>
+              <td>what</td>
+              <td>これはいったい<strong>何</strong>ですか。(What is this?) / 今<strong>何</strong>時ですか。(What time is it?)</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('なに')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">どちら / どっち</strong></td>
+              <td><code>dochira / docchi</code></td>
+              <td>which (of two)</td>
+              <td>りんごとみかん、<strong>どちら</strong>が好きですか。(Which do you like, apples or oranges?)</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('どちら、どっち')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">どれ</strong></td>
+              <td><code>dore</code></td>
+              <td>which (of three+)</td>
+              <td>あなたのかばんは<strong>どれ</strong>ですか。(Which one is your bag?)</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('どれ')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">いくら</strong></td>
+              <td><code>ikura</code></td>
+              <td>how much (price)</td>
+              <td>このラーメンは<strong>いくら</strong>ですか。(How much is this ramen?)</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('いくら')" title="Listen">🔊</button></td>
+            </tr>
+            <tr>
+              <td><strong class="jp-text">いくつ</strong></td>
+              <td><code>ikutsu</code></td>
+              <td>how many / how old</td>
+              <td>りんごが<strong>いくつ</strong>ありますか。(How many apples are there?) / お<strong>いくつ</strong>ですか。(How old are you?)</td>
+              <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('いくつ')" title="Listen">🔊</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 5. Essential N5 Additions & Key Rules -->
+    <div class="pnd-card">
+      <div class="pnd-card-header">
+        <h3 class="pnd-card-title">5. Essential N5 Additions &amp; Key Rules (補足ガイド)</h3>
+        <span class="pnd-badge indigo">N5 Extra Mastery</span>
+      </div>
+
+      <div class="pnd-extra-grid">
+        <!-- Casual Direction Words -->
+        <div class="pnd-extra-item">
+          <h4>🧭 Casual Direction Words (Informal Ko-so-a-do)</h4>
+          <ul>
+            <li><strong>こっち</strong> (kocchi) — this way / here <button onclick="playJapaneseAudio('こっち')" class="pnd-mini-audio">🔊</button></li>
+            <li><strong>そっち</strong> (socchi) — that way / there <button onclick="playJapaneseAudio('そっち')" class="pnd-mini-audio">🔊</button></li>
+            <li><strong>あっち</strong> (acchi) — that way over there <button onclick="playJapaneseAudio('あっち')" class="pnd-mini-audio">🔊</button></li>
+            <li><strong>どっち</strong> (docchi) — which way / which one (of two) <button onclick="playJapaneseAudio('どっち')" class="pnd-mini-audio">🔊</button></li>
+          </ul>
+        </div>
+
+        <!-- People Demonstratives -->
+        <div class="pnd-extra-item">
+          <h4>👤 Demonstratives for People (+ Person)</h4>
+          <ul>
+            <li><strong>この人 / この方</strong> (kono hito / kono kata) — this person <button onclick="playJapaneseAudio('このひと、このかた')" class="pnd-mini-audio">🔊</button></li>
+            <li><strong>その人 / その方</strong> (sono hito / sono kata) — that person <button onclick="playJapaneseAudio('そのひと、そのかた')" class="pnd-mini-audio">🔊</button></li>
+            <li><strong>あの人 / あの方</strong> (ano hito / ano kata) — that person over there <button onclick="playJapaneseAudio('あのひと、あのかた')" class="pnd-mini-audio">🔊</button></li>
+            <li><strong>どの人 / どの方</strong> (dono hito / dono kata) — which person <button onclick="playJapaneseAudio('どのひと、どのかた')" class="pnd-mini-audio">🔊</button></li>
+          </ul>
+        </div>
+
+        <!-- Duration & Amount Interrogatives -->
+        <div class="pnd-extra-item">
+          <h4>⏱ Duration &amp; Amount Interrogatives</h4>
+          <ul>
+            <li><strong>どのくらい / どれくらい</strong> (dono kurai / dore kurai) — how long / how much duration <button onclick="playJapaneseAudio('どのくらい')" class="pnd-mini-audio">🔊</button></li>
+            <li><strong>どのぐらい</strong> (dono gurai) — approximate duration / amount <button onclick="playJapaneseAudio('どのぐらい')" class="pnd-mini-audio">🔊</button></li>
+          </ul>
+        </div>
+
+        <!-- Standalone vs Pre-noun Grammar Rule -->
+        <div class="pnd-extra-item tip-gold">
+          <h4>💡 Grammar Rule: これ vs この</h4>
+          <p>
+            • <strong>これ / それ / あれ</strong> stand ALONE as pronouns: <code>これは本です。</code> (This is a book.)<br>
+            • <strong>この / その / あの</strong> MUST be followed by a noun: <code>この本は面白いです。</code> (This book is interesting.)
+          </p>
+        </div>
+
+        <!-- Polite Naming Rule -->
+        <div class="pnd-extra-item tip-indigo">
+          <h4>💡 Social Rule: Avoid Overusing "あなた"</h4>
+          <p>
+            In Japanese, calling someone <strong>"あなた" (anata)</strong> directly can sound distant or overly direct. Always prefer using their name + <strong>さん (-san)</strong> (e.g. <code>田中さんは学生ですか</code>) or their title (e.g. <code>先生</code>).
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
   <!-- Vocab -->
   <div class="learn-section" id="ls-vocab">
@@ -301,15 +738,16 @@
 
 <!-- PRACTICE -->
 <section class="page" id="page-practice">
-  <div class="page-header"><h1 class="page-title">✏️ Practice</h1></div>
+  <div class="page-header"><h1 class="page-title">✏️ Practice Hub <span style="font-size:14px;color:var(--muted)">Interactive Drills</span></h1></div>
   <div class="learn-tabs" id="practiceTabs">
     <button class="tab-btn active" onclick="practiceTab('kana',this)">ひ Kana Quiz</button>
     <button class="tab-btn" onclick="practiceTab('vocab',this)">📚 Vocab Quiz</button>
     <button class="tab-btn" onclick="practiceTab('grammar',this)">🔤 Grammar Quiz</button>
     <button class="tab-btn" onclick="practiceTab('kanji',this)">漢 Kanji Quiz</button>
-    <button class="tab-btn" onclick="practiceTab('flashcard',this)">🃏 Flashcards</button>
-    <button class="tab-btn" onclick="practiceTab('listening',this)">🎧 Listening</button>
+    <button class="tab-btn" onclick="practiceTab('flashcard',this)">🃏 SRS Flashcards</button>
+    <button class="tab-btn" onclick="practiceTab('listening',this)">🎧 Listening Hub</button>
   </div>
+  <div id="practice-sub-bar" class="practice-sub-bar"></div>
   <div id="practice-area"></div>
 </section>
 
@@ -323,21 +761,38 @@
 
 <!-- LIVE EXAM -->
 <section class="page" id="page-exam">
-  <div class="page-header"><h1 class="page-title">⏱ Live Exam Mode</h1></div>
+  <div class="page-header">
+    <h1 class="page-title">⏱ Live Exam Mode <span style="font-size:14px;color:var(--muted)">Official Timed Simulation</span></h1>
+  </div>
+  
+  <!-- Lobby -->
   <div id="exam-lobby">
     <div class="exam-info-card">
       <div class="exam-icon">🎌</div>
-      <h2>JLPT <span id="examLevelLabel">N5</span> Full Simulation</h2>
-      <p>Real exam environment with countdown timer. Auto-submits when time expires.</p>
-      <div class="exam-details-grid">
-        <div class="exam-detail"><span>📖 Vocab</span><strong>25 Qs</strong></div>
-        <div class="exam-detail"><span>🔤 Grammar</span><strong>20 Qs</strong></div>
-        <div class="exam-detail"><span>📄 Reading</span><strong>15 Qs</strong></div>
+      <h2>JLPT <span id="examLevelLabel">N5</span> Timed Exam Simulation</h2>
+      <p>Simulate official JLPT exam conditions with countdown timer, question flagging, and instant score diagnostic report.</p>
+      
+      <!-- Exam Set Selector -->
+      <div style="margin:20px 0;text-align:left">
+        <label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase">Select Exam Set:</label>
+        <select id="examSetSelect" style="width:100%;padding:10px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);color:var(--ink);font-size:14px;margin-top:6px;font-weight:600" onchange="updateExamLobbySpecs()">
+          <!-- Populated dynamically -->
+        </select>
+      </div>
+
+      <div class="exam-details-grid" id="examSpecsGrid">
+        <div class="exam-detail"><span>📖 Vocab</span><strong id="examVocabCount">15 Qs</strong></div>
+        <div class="exam-detail"><span>🔤 Grammar</span><strong id="examGrammarCount">15 Qs</strong></div>
+        <div class="exam-detail"><span>📄 Reading</span><strong id="examReadingCount">5 Qs</strong></div>
+        <div class="exam-detail"><span>🎧 Listening</span><strong id="examListeningCount">5 Qs</strong></div>
         <div class="exam-detail"><span>⏱ Time</span><strong id="examTimeLabel">105 min</strong></div>
       </div>
-      <button class="btn-primary btn-lg" onclick="startLiveExam()">🚀 Start Live Exam</button>
+
+      <button class="btn-primary btn-lg" style="width:100%" onclick="startLiveExam()">🚀 Start Live Exam</button>
     </div>
   </div>
+
+  <!-- Active Exam Player -->
   <div id="exam-active" style="display:none">
     <div class="exam-header">
       <div class="exam-timer-display" id="examTimerDisplay">1:45:00</div>
@@ -345,19 +800,60 @@
         <span id="examQNum">Q 1/60</span>
         <div class="exam-prog-bar"><div id="examProgFill" style="width:0%"></div></div>
       </div>
-      <button class="btn-danger" onclick="submitExam(true)">Submit</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary" id="examFlagBtn" style="padding:6px 12px;font-size:12px" onclick="toggleFlagCurrentQuestion()">🚩 Flag</button>
+        <button class="btn-danger" style="padding:6px 14px;font-size:12px" onclick="confirmSubmitExam()">Submit</button>
+      </div>
     </div>
+
+    <!-- Question Sheet Palette -->
+    <div class="exam-sheet-card" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 20px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:12px;font-weight:600;color:var(--muted)">
+        <span>Question Navigator (Click number to jump):</span>
+        <span><span style="color:var(--indigo)">■ Answered</span> · <span style="color:var(--gold)">🚩 Flagged</span> · <span style="color:var(--muted)">□ Empty</span></span>
+      </div>
+      <div class="exam-nav-palette" id="examNavPalette" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+    </div>
+
+    <!-- Main Question Body -->
     <div id="examBody"></div>
   </div>
+
+  <!-- Exam Results -->
   <div id="exam-results" style="display:none"></div>
 </section>
 
 <!-- TRACKER -->
 <section class="page" id="page-tracker">
-  <div class="tracker-header">
-    <h1 class="page-title">My Progress</h1>
-    <button class="btn-secondary" onclick="showResetConfirm()" style="font-size:13px;padding:8px 18px">Reset all</button>
+  <div class="tracker-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div>
+      <h1 class="page-title" style="margin-bottom:4px">My Study Progress</h1>
+      <div style="font-size:13px;color:var(--muted)">Track your JLPT readiness, roadmap milestones, and exam history.</div>
+    </div>
+    <button class="btn-secondary" onclick="showResetConfirm()" style="font-size:13px;padding:8px 18px">Reset All Data</button>
   </div>
+
+  <!-- Overall Overview Card -->
+  <div class="tracker-overview-card" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px">
+    <div>
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Target Exam</div>
+      <div style="font-size:24px;font-weight:700;color:var(--indigo)" id="trLevelLabel">JLPT N5</div>
+    </div>
+    <div>
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Overall Mastery</div>
+      <div style="font-size:24px;font-weight:700;color:var(--teal)" id="trOverallMastery">0%</div>
+    </div>
+    <div>
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Total XP</div>
+      <div style="font-size:24px;font-weight:700;color:var(--gold)" id="trTotalXP">0 XP</div>
+    </div>
+    <div>
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Study Time</div>
+      <div style="font-size:24px;font-weight:700;color:var(--ink)" id="trStudyTime">0m</div>
+    </div>
+  </div>
+
+  <!-- Category Progress Grid -->
   <div class="tracker-prog-grid">
     <div class="tpb">
       <div class="tpb-top"><span class="tpb-num" id="tpVocNum" style="color:var(--teal)">0/90</span><span class="tpb-pct" id="tpVocPct">0%</span></div>
@@ -380,7 +876,14 @@
       <div class="tpb-bar"><div class="tpb-bar-fill" id="tpTestBar" style="background:var(--red);width:0%"></div></div>
     </div>
   </div>
+
+  <!-- Phase Roadmap Checklist -->
+  <div style="font-size:18px;font-weight:700;color:var(--ink);margin:32px 0 16px">🗺️ Learning Roadmap Checklist</div>
   <div id="checklistContainer"></div>
+
+  <!-- Exam Results History Log -->
+  <div style="font-size:18px;font-weight:700;color:var(--ink);margin:32px 0 16px">📊 Recent Exam History</div>
+  <div id="examHistoryContainer"></div>
 </section>
 
 <!-- REMINDERS -->
@@ -397,10 +900,16 @@
           <button class="btn-primary" style="padding:9px 18px;font-size:13px" onclick="addReminder()">Add</button>
         </div>
       </div>
-      <div class="notif-card">
-        <div style="font-weight:600;font-size:14px">Notification permission</div>
-        <p>Enable browser notifications to get study reminders even when the tab is in the background.</p>
-        <button class="btn-primary" style="background:var(--teal);border:none;font-size:13px;padding:10px 20px" onclick="enableNotifs()">Enable notifications</button>
+      <div class="notif-card" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-weight:600;font-size:14px;color:var(--ink)">Browser Notifications</div>
+          <span id="notifStatusBadge" style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--gold-soft);color:var(--gold)">Check permission</span>
+        </div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5">Enable browser notifications to receive alerts on scheduled study times with sound chime.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-primary" style="background:var(--teal);border:none;font-size:13px;padding:9px 16px" onclick="enableNotifs()">Enable Notifications</button>
+          <button class="btn-secondary" style="font-size:13px;padding:9px 16px" onclick="testNotificationNow()">🔔 Test Notification Now</button>
+        </div>
       </div>
     </div>
     <div>

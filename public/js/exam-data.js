@@ -35,6 +35,11 @@ const EXAM_SETS=[
   {id:33,section:'Reading',q:'「きょうは　いい　てんきです。そらが　あおいです。こうえんで　あそびたいです。」\n\nきょうの　てんきは？',opts:['いい','わるい','あめ','くもり'],ans:0,exp:'The text says いい天気 (good weather).'},
   {id:34,section:'Reading',q:'（same passage above）\nどこで　あそびたいですか？',opts:['こうえん','うち','がっこう','えき'],ans:0,exp:'The text says 公園 (park).'},
   {id:35,section:'Reading',q:'「たなかさんは　せんせいです。まいにち　がっこうで　にほんごを　おしえています。」\n\nたなかさんの　しごとは？',opts:['せんせい','いしゃ','がくせい','かいしゃいん'],ans:0,exp:'The text says 先生 (teacher).'},
+  {id:36,section:'Listening',audioScript:'男の人と女の人が話しています。男の人は明日どこへ行きますか？\n男：明日、図書館へ行きますか？\n女：いいえ、明日は駅の近くの公園へ行きます。\n男：そうですか。じゃ、私も公園へ行きます。',q:'🎧 【聴解・Listening】\n男の人と女の人が話しています。\n男の人は明日どこへ行きますか？',opts:['公園 (こうえん)','図書館 (としょかん)','学校 (がっこう)','駅 (えき)'],ans:0,exp:'The man says "じゃ、私も公園へ行きます" (Then I will also go to the park).'},
+  {id:37,section:'Listening',audioScript:'女の人と男の人が話しています。男の人は何を食べますか？\n女：昼ご飯に何をたべますか？ラーメンにしますか？\n男：ううん、今日はそばが食べたいです。',q:'🎧 【聴解・Listening】\n女の人と男の人が話しています。\n男の人は何を食べますか？',opts:['そば','ラーメン','うどん','カレー'],ans:0,exp:'The man says "今日はそばが食べたいです" (Today I want to eat Soba).'},
+  {id:38,section:'Listening',audioScript:'男の人と女の人が話しています。部屋に何がいくつありますか？\n男：部屋に椅子が幾つありますか？\n女：椅子は三つあります。テーブルは一つです。',q:'🎧 【聴解・Listening】\n男の人と女の人が話しています。\n部屋に椅子（いす）が幾つ（いくつ）ありますか？',opts:['三つ (みっつ)','一つ (ひとつ)','二つ (ふたつ)','四つ (よっつ)'],ans:0,exp:'The woman says "椅子は三つあります" (There are three chairs).'},
+  {id:39,section:'Listening',audioScript:'女の人が話しています。明日の天気はどうですか？\n女：今日の夜から雨が降りますが、明日の朝にはやんで晴れるでしょう。',q:'🎧 【聴解・Listening】\n女の人が天気予報を話しています。\n明日の朝の天気はどうですか？',opts:['晴れ (はれ)','雨 (あめ)','雪 (ゆき)','曇り (くもり)'],ans:0,exp:'The announcement says "明日の朝にはやんで晴れるでしょう" (It will clear up and be sunny tomorrow morning).'},
+  {id:40,section:'Listening',audioScript:'男の人と女の人が話しています。テストは何曜日ですか？\n女：日本語のテストは木曜日ですか、金曜日ですか？\n男：金曜日ですよ。時間は十時からです。',q:'🎧 【聴解・Listening】\n男の人と女の人が話しています。\n日本語のテストは何曜日ですか？',opts:['金曜日 (きんようび)','木曜日 (もくようび)','水曜日 (すいようび)','土曜日 (どようび)'],ans:0,exp:'The man confirms "金曜日ですよ" (It is Friday).'},
 ]},
 {id:'set2',year:'2023',title:'Practice Test 2',level:'N5',questions:[
   {id:1,section:'Vocabulary',q:'「図書館」の　よみかたは？',opts:['としょかん','としょうかん','としょがん','としかん'],ans:0,exp:'図書館 = としょかん (library)'},
@@ -88,7 +93,12 @@ const EXAM_SETS=[
   {id:22,section:'Reading',q:'（same passage above）\nいつ　テニスを　しますか？',opts:['どようび','にちようび','もくようび','きんようび'],ans:0,exp:'The text says 土曜日 (Saturday).'},
   {id:23,section:'Reading',q:'「このみせは　あさ　くじから　よるく　じまでです。にちようびは　やすみです。」\n\nこのみせは　なんじに　あきますか？',opts:['くじ','じゅうじ','はちじ','しちじ'],ans:0,exp:'The text says 九時 (9 o\'clock).'},
   {id:24,section:'Reading',q:'（same passage above）\nなんようびが　やすみですか？',opts:['にちようび','どようび','もくようび','きんようび'],ans:0,exp:'The text says 日曜日 (Sunday).'},
-  {id:25,section:'Reading',q:'「ゆうびんきょくは　えきの　みぎに　あります。ぎんこうは　ゆうびんきょくの　となりです。」\n\nぎんこうは　どこですか？',opts:['ゆうびんきょくのとなり','えきのひだり','こうえんのまえ','えきのうしろ'],ans:0,exp:'The text says 郵便局の隣 (next to the post office).'},
+  {id:25,section:'Reading',q:'「ゆうびんきょくは　えきの　みぎに　あります。ぎんこうはゆうびんきょくの　となりです。」\n\nぎんこうは　どこですか？',opts:['ゆうびんきょくのとなり','えきのひだり','こうえんのまえ','えきのうしろ'],ans:0,exp:'The text says 郵便局の隣 (next to the post office).'},
+  {id:26,section:'Listening',audioScript:'男の人と女の人が話しています。二人は何時に会いますか？\n男：明日の待ち合わせは六時にしますか？\n女：すみません、六時はちょっと早いです。六時半にしましょう。',q:'🎧 【聴解・Listening】\n男の人と女の人が話しています。\n二人は明日何時に会いますか？',opts:['六時半 (6:30)','六時 (6:00)','七時 (7:00)','七時半 (7:30)'],ans:0,exp:'The woman suggests "六時半にしましょう" (Let\'s make it 6:30).'},
+  {id:27,section:'Listening',audioScript:'女の人が話しています。鞄の中に何がありますか？\n女：私のカバンの中には本とノートと赤い鍵が入っています。',q:'🎧 【聴解・Listening】\n女の人が話しています。\nカバンの中に何がありますか？',opts:['本とノートと鍵','本と辞書','財布と携帯電話','ペンと手帳'],ans:0,exp:'The text states "本とノートと赤い鍵が入っています".'},
+  {id:28,section:'Listening',audioScript:'男の人と女の人が話しています。男の人はどこの国から来ましたか？\n女：ジョンさんはアメリカから来ましたか？\n男：いいえ、オーストラリアから来ました。',q:'🎧 【聴解・Listening】\n男の人と女の人が話しています。\n男の人はどこの国から来ましたか？',opts:['オーストラリア','アメリカ','イギリス','カナダ'],ans:0,exp:'The man answers "オーストラリアから来ました".'},
+  {id:29,section:'Listening',audioScript:'女の人と男の人が話しています。二人はどこで晩御飯を食べますか？\n男：今日の晩ご飯はレストランに行きますか？\n女：いいえ、家でカレーを作りましょう。',q:'🎧 【聴解・Listening】\n女の人と男の人が話しています。\n二人はどこで晩御飯を食べますか？',opts:['うち (家)','レストラン','居酒屋','公園'],ans:0,exp:'The woman suggests "家でカレーを作りましょう" (Let\'s make curry at home).'},
+  {id:30,section:'Listening',audioScript:'男の人が話しています。図書館は何曜日に休みですか？\n男：この図書館は月曜日から土曜日まで開いています。日曜日だけ休みです。',q:'🎧 【聴解・Listening】\n男の人が図書館について説明しています。\n図書館は何曜日が休みですか？',opts:['日曜日 (にちようび)','月曜日 (げつようび)','土曜日 (どようび)','水曜日 (すいようび)'],ans:0,exp:'The announcement says "日曜日だけ休みです" (Closed only on Sundays).'},
 ]},
 ];
 
