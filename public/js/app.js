@@ -230,6 +230,8 @@ function toggleTheme(){
 
 // ── NAVIGATION ──
 function goto(page,btn){
+  document.body.style.overflow = 'auto';
+  document.querySelectorAll('.modal-overlay').forEach(m => { m.classList.remove('open'); m.classList.remove('active'); });
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
@@ -458,7 +460,7 @@ function renderKanaGrid(type){
   const grid=document.getElementById(type+'-grid');
   grid.innerHTML=data.map(g=>`
     <div class="kana-group">${g.group}</div>
-    ${g.chars.map(c=>`<div class="kana-card"><div class="kana-jp">${c.jp}</div><div class="kana-rom">${c.r}</div></div>`).join('')}
+    ${g.chars.map(c=>`<div class="kana-card" onclick="openKanaModal('${c.jp}', '${c.r}', '${type}', '${g.group}')" style="cursor:pointer" title="Click to view stroke order & practice"><div class="kana-jp">${c.jp}</div><div class="kana-rom">${c.r}</div></div>`).join('')}
   `).join('');
 }
 function renderVocab(cat='all'){
@@ -569,6 +571,69 @@ function renderKanji(cat='all'){
   }).join('');
 }
 
+function openKanaModal(char, romaji, type, group) {
+  const isHira = type === 'hiragana';
+  const typeLabel = isHira ? 'Hiragana (ひらがな)' : 'Katakana (カタカナ)';
+  
+  currentKanjiObj = { k: char, on: romaji, kun: romaji, en: `${typeLabel} character '${char}' (${romaji})`, cat: group };
+  currentKanjiKey = 'kana_' + char;
+  const strokeCount = char.length > 1 ? 3 : 2; // Default stroke count estimate for Kana
+
+  // Update Header Elements
+  document.getElementById('kmChar').textContent = char;
+  document.getElementById('kmLevel').textContent = isHira ? 'Hiragana' : 'Katakana';
+  document.getElementById('kmCategory').textContent = group || 'Kana';
+  document.getElementById('kmStrokesBadge').textContent = strokeCount + ' strokes';
+  document.getElementById('kmMeaning').textContent = `Reading: "${romaji}" (${typeLabel})`;
+  document.getElementById('kmOn').textContent = romaji;
+  document.getElementById('kmKun').textContent = romaji;
+
+  // Update Radical & Component info
+  document.getElementById('kmRadicalText').textContent = `${typeLabel} - ${group}`;
+  document.getElementById('kmCompText').textContent = `Standard Japanese syllabary character for pronunciation "${romaji}"`;
+  document.getElementById('kmStrokeCountText').textContent = `${strokeCount} stroke(s)`;
+
+  // Update Learned Button
+  const learnedBtn = document.getElementById('kmLearnedBtn');
+  const learned = S.learnedKanji[currentKanjiKey];
+  if(learned){
+    learnedBtn.classList.add('learned');
+    learnedBtn.innerHTML = '<span>✓</span> Learned';
+  } else {
+    learnedBtn.classList.remove('learned');
+    learnedBtn.innerHTML = 'Mark Learned';
+  }
+
+  // Render Stroke Order Animation and Steps
+  renderKanjiStrokeAnimation(char, strokeCount);
+
+  // Render Related Kana from the same group
+  const data = isHira ? HIRAGANA : KATAKANA;
+  const grpObj = data.find(g => g.group === group);
+  const familyGrid = document.getElementById('kmFamilyGrid');
+  if (grpObj && grpObj.chars) {
+    familyGrid.innerHTML = grpObj.chars.filter(c => c.jp !== char).map(c => `
+      <div class="km-fam-card" onclick="openKanaModal('${c.jp}', '${c.r}', '${type}', '${group}')">
+        <div class="km-fam-k">${c.jp}</div>
+        <div class="km-fam-reading">${c.r}</div>
+      </div>
+    `).join('');
+  } else {
+    familyGrid.innerHTML = '<div style="font-size:13px;color:var(--muted);grid-column:1/-1">No other characters in group.</div>';
+  }
+
+  // Initialize Practice Canvas
+  initPracticeCanvas(char);
+
+  // Show Modal
+  const modal = document.getElementById('kanji-detail-modal');
+  if(modal) {
+    modal.classList.add('open');
+    modal.classList.add('active');
+  }
+  document.body.style.overflow = 'hidden';
+}
+
 async function openKanjiModal(kanjiChar){
   // Search in current level first, then other level
   let kj = (KANJI[S.level]||[]).find(k => k.k === kanjiChar);
@@ -618,12 +683,20 @@ async function openKanjiModal(kanjiChar){
 
   // Show Modal
   const modal = document.getElementById('kanji-detail-modal');
-  if(modal) modal.classList.add('open');
+  if(modal) {
+    modal.classList.add('open');
+    modal.classList.add('active');
+  }
+  document.body.style.overflow = 'hidden';
 }
 
 function closeKanjiModal(){
   const modal = document.getElementById('kanji-detail-modal');
-  if(modal) modal.classList.remove('open');
+  if(modal) {
+    modal.classList.remove('open');
+    modal.classList.remove('active');
+  }
+  document.body.style.overflow = 'auto';
 }
 
 function updateModalLearnedBtn(){
