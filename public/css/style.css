@@ -1087,6 +1087,16 @@ body{font-family:var(--font-body);background:var(--surface);color:var(--ink);min
 .km-learned-btn:hover { border-color: var(--teal); color: var(--teal); }
 .km-learned-btn.active { background: var(--teal); color: #fff; border-color: var(--teal); }
 
+.km-nav-btn {
+  padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .2s; display: inline-flex; align-items: center; gap: 4px;
+}
+.km-nav-btn:hover { border-color: var(--indigo); color: var(--indigo); }
+.km-nav-btn.primary-nav { background: var(--indigo); color: #fff; border-color: var(--indigo); }
+.km-nav-btn.primary-nav:hover { background: #3b82f6; border-color: #3b82f6; }
+.km-nav-btn:disabled { opacity: 0.35; cursor: not-allowed; border-color: var(--border) !important; background: var(--surface) !important; color: var(--muted) !important; }
+
 /* Section Cards */
 .km-section-card {
   background: var(--surface); border: 1px solid var(--border);

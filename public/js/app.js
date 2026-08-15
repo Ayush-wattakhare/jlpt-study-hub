@@ -571,10 +571,24 @@ function renderKanji(cat='all'){
   }).join('');
 }
 
+let currentModalList = [];
+let currentModalIndex = -1;
+
 function openKanaModal(char, romaji, type, group) {
   const isHira = type === 'hiragana';
   const typeLabel = isHira ? 'Hiragana (ひらがな)' : 'Katakana (カタカナ)';
   
+  // Build ordered character list for navigation
+  const data = isHira ? HIRAGANA : KATAKANA;
+  currentModalList = [];
+  data.forEach(g => {
+    (g.chars || []).forEach(c => {
+      currentModalList.push({ char: c.jp, romaji: c.r, type: isHira ? 'hiragana' : 'katakana', group: g.group });
+    });
+  });
+  currentModalIndex = currentModalList.findIndex(item => item.char === char);
+  updateModalNavBtns();
+
   currentKanjiObj = { k: char, on: romaji, kun: romaji, en: `${typeLabel} character '${char}' (${romaji})`, cat: group };
   currentKanjiKey = 'kana_' + char;
   const strokeCount = char.length > 1 ? 3 : 2; // Default stroke count estimate for Kana
@@ -594,21 +608,12 @@ function openKanaModal(char, romaji, type, group) {
   document.getElementById('kmStrokeCountText').textContent = `${strokeCount} stroke(s)`;
 
   // Update Learned Button
-  const learnedBtn = document.getElementById('kmLearnedBtn');
-  const learned = S.learnedKanji[currentKanjiKey];
-  if(learned){
-    learnedBtn.classList.add('learned');
-    learnedBtn.innerHTML = '<span>✓</span> Learned';
-  } else {
-    learnedBtn.classList.remove('learned');
-    learnedBtn.innerHTML = 'Mark Learned';
-  }
+  updateModalLearnedBtn();
 
   // Render Stroke Order Animation and Steps
   renderKanjiStrokeAnimation(char, strokeCount);
 
   // Render Related Kana from the same group
-  const data = isHira ? HIRAGANA : KATAKANA;
   const grpObj = data.find(g => g.group === group);
   const familyGrid = document.getElementById('kmFamilyGrid');
   if (grpObj && grpObj.chars) {
@@ -635,6 +640,11 @@ function openKanaModal(char, romaji, type, group) {
 }
 
 async function openKanjiModal(kanjiChar){
+  const kanjiList = KANJI[S.level] || [];
+  currentModalList = kanjiList.map(k => ({ char: k.k, type: 'kanji' }));
+  currentModalIndex = currentModalList.findIndex(item => item.char === kanjiChar);
+  updateModalNavBtns();
+
   // Search in current level first, then other level
   let kj = (KANJI[S.level]||[]).find(k => k.k === kanjiChar);
   let lvl = S.level;
@@ -711,6 +721,38 @@ function updateModalLearnedBtn(){
     btn.innerHTML = '<span>＋</span> Mark Learned';
   }
 }
+
+function updateModalNavBtns(){
+  const isFirst = currentModalIndex <= 0;
+  const isLast = currentModalIndex < 0 || currentModalIndex >= currentModalList.length - 1;
+  document.querySelectorAll('.km-prev-btn, #kmPrevBtn').forEach(btn => {
+    btn.disabled = isFirst;
+  });
+  document.querySelectorAll('.km-next-btn, #kmNextBtn').forEach(btn => {
+    btn.disabled = isLast;
+  });
+}
+
+function navKanaModal(delta){
+  if(currentModalIndex < 0 || !currentModalList.length) return;
+  const targetIndex = currentModalIndex + delta;
+  if(targetIndex >= 0 && targetIndex < currentModalList.length){
+    const item = currentModalList[targetIndex];
+    if(item.type === 'hiragana' || item.type === 'katakana'){
+      openKanaModal(item.char, item.romaji, item.type, item.group);
+    } else {
+      openKanjiModal(item.char);
+    }
+  }
+}
+
+// Global Keyboard Navigation for Character Modal
+document.addEventListener('keydown', (e) => {
+  const modal = document.getElementById('kanji-detail-modal');
+  if(!modal || !modal.classList.contains('open')) return;
+  if(e.key === 'ArrowRight') { navKanaModal(1); }
+  else if(e.key === 'ArrowLeft') { navKanaModal(-1); }
+});
 
 async function toggleKanjiFromModal(){
   if(!currentKanjiKey) return;

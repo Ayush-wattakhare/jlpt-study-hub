@@ -91,9 +91,15 @@
           <div><span class="km-r-label">訓 (Kunyomi):</span> <strong id="kmKun">ひとつ</strong></div>
         </div>
       </div>
-      <button class="km-learned-btn" id="kmLearnedBtn" onclick="toggleKanjiFromModal()">
-        <span>✓</span> Learned
-      </button>
+      <div class="km-actions-group" style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;margin-left:auto;">
+        <button class="km-learned-btn" id="kmLearnedBtn" onclick="toggleKanjiFromModal()">
+          <span>✓</span> Learned
+        </button>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="km-nav-btn km-prev-btn" onclick="navKanaModal(-1)" title="Previous Character (Left Arrow)">◀ Prev</button>
+          <button class="km-nav-btn primary-nav km-next-btn" onclick="navKanaModal(1)" title="Next Character (Right Arrow)">Next ▶</button>
+        </div>
+      </div>
     </div>
 
     <!-- Section 1: Stroke Order & Practice -->
@@ -138,12 +144,16 @@
       </div>
 
       <!-- Interactive Canvas Practice Pad -->
-      <div class="km-canvas-wrap">
-        <div class="km-canvas-header">
-          <span>🎨 Practice Tracing Pad</span>
-          <div style="display:flex;gap:6px">
-            <button class="km-mini-btn" onclick="toggleCanvasGuide()" id="kmGuideBtn">Guide: ON</button>
-            <button class="km-mini-btn danger" onclick="clearPracticeCanvas()">Clear</button>
+      <div class="km-practice-wrap" style="margin-top:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+          <div style="font-weight:700;font-size:14px;color:var(--ink);display:flex;align-items:center;gap:6px;">
+            <span>🎨</span> Practice Tracing Pad
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button class="km-ctrl-btn sec" onclick="toggleCanvasGuide()" id="kmGuideBtn">Guide: ON</button>
+            <button class="km-ctrl-btn sec" onclick="clearPracticeCanvas()">Clear</button>
+            <button class="km-nav-btn km-prev-btn" id="kmPrevBtn" onclick="navKanaModal(-1)" title="Previous Character">◀ Prev</button>
+            <button class="km-nav-btn primary-nav km-next-btn" id="kmNextBtn" onclick="navKanaModal(1)" title="Next Character">Next ▶</button>
           </div>
         </div>
         <div class="km-canvas-container">
