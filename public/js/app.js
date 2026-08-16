@@ -12,10 +12,10 @@ let reminders=[];
 
 let currentUser = localStorage.getItem('jlptEmail');
 let currentToken = localStorage.getItem('jlptToken');
-let isGuest = localStorage.getItem('jlptGuest') === 'true';
+let isGuest = !currentUser || localStorage.getItem('jlptGuest') === 'true';
 
-// Auto-Guest if fresh visit
-if (!currentUser && !isGuest) {
+// Auto-Guest if fresh visit without account
+if (!currentUser && !localStorage.getItem('jlptGuest')) {
   isGuest = true;
   localStorage.setItem('jlptGuest', 'true');
 }
@@ -37,10 +37,11 @@ function yesterdayKey() {
   return `${y}-${m}-${d}`;
 }
 
-// ── LOCAL STORAGE (Guest Persistence) ──
-const LS_KEY = 'jlpt_guest_state';
-function saveGuestState() {
-  if (!isGuest) return;
+// ── LOCAL STORAGE (Universal Offline & Instant Persistence) ──
+const LS_APP_KEY = 'jlpt_app_state';
+const LS_GUEST_KEY = 'jlpt_guest_state';
+
+function saveLocalState() {
   const snap = {
     level: S.level, xp: S.xp, streak: S.streak,
     lastStudied: S.lastStudied, studyTimeSeconds: S.studyTimeSeconds,
@@ -48,46 +49,136 @@ function saveGuestState() {
     weakAreas: S.weakAreas, activityLog: S.activityLog,
     learnedKanji: S.learnedKanji, settings: S.settings,
     xpHistory: S.xpHistory,
-    reminders: reminders
+    reminders: reminders,
+    username: S.username
   };
-  try { localStorage.setItem(LS_KEY, JSON.stringify(snap)); } catch(e) {}
-}
-function loadGuestState() {
   try {
-    const raw = localStorage.getItem(LS_KEY);
+    const json = JSON.stringify(snap);
+    localStorage.setItem(LS_APP_KEY, json);
+    localStorage.setItem(LS_GUEST_KEY, json);
+  } catch(e) {
+    console.warn('Failed to save to localStorage:', e);
+  }
+}
+
+function loadLocalState() {
+  try {
+    const raw = localStorage.getItem(LS_APP_KEY) || localStorage.getItem(LS_GUEST_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch(e) { return null; }
 }
 
-// ── API ──
+function applyStateData(d, isServerMerge = false) {
+  if (!d) return;
+  if (isServerMerge) {
+    // Intelligent merge: local progress is NEVER wiped out by older or empty server data
+    S.level = d.level || S.level || 'N5';
+    S.xp = Math.max(S.xp || 0, d.xp || 0);
+    S.studyTimeSeconds = Math.max(S.studyTimeSeconds || 0, d.studyTimeSeconds || 0);
+    S.streak = Math.max(S.streak || 0, d.streak || 0);
+    
+    // Pick the latest lastStudied date
+    if (d.lastStudied) {
+      if (!S.lastStudied || d.lastStudied >= S.lastStudied) {
+        S.lastStudied = d.lastStudied;
+      }
+    }
+    
+    // Merge progress & kanji (union of all learned items)
+    S.progress = Object.assign({}, d.progress || {}, S.progress || {});
+    S.learnedKanji = Object.assign({}, d.learnedKanji || {}, (d.progress && d.progress.learnedKanji) || {}, S.learnedKanji || {});
+    S.weakAreas = Object.assign({}, d.weakAreas || {}, S.weakAreas || {});
+    S.activityLog = Object.assign({}, d.activityLog || {}, S.activityLog || {});
+    
+    // Deduplicate test results
+    const combinedTests = [...(S.testResults || []), ...(d.testResults || [])];
+    const testMap = new Map();
+    combinedTests.forEach(t => {
+      const key = `${t.title || 'Test'}_${t.timestamp || 0}_${t.score || 0}`;
+      if (!testMap.has(key)) testMap.set(key, t);
+    });
+    S.testResults = Array.from(testMap.values()).sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    // Deduplicate XP history
+    const combinedXP = [...(S.xpHistory || []), ...(d.xpHistory || [])];
+    const xpMap = new Map();
+    combinedXP.forEach(x => {
+      const key = `${x.date}_${x.amount}_${x.reason}`;
+      if (!xpMap.has(key)) xpMap.set(key, x);
+    });
+    S.xpHistory = Array.from(xpMap.values()).sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 50);
+
+    if (d.settings) S.settings = Object.assign({}, S.settings, d.settings);
+    if (d.reminders && d.reminders.length) reminders = d.reminders;
+    if (d.username || d._username) S.username = d.username || d._username;
+  } else {
+    // Initial local hydration
+    if (d.level) S.level = d.level;
+    if (d.xp !== undefined) S.xp = d.xp;
+    if (d.streak !== undefined) S.streak = d.streak;
+    if (d.lastStudied) S.lastStudied = d.lastStudied;
+    if (d.studyTimeSeconds !== undefined) S.studyTimeSeconds = d.studyTimeSeconds;
+    if (d.completedLessons) S.completedLessons = d.completedLessons;
+    if (d.testResults) S.testResults = d.testResults;
+    if (d.progress) S.progress = d.progress;
+    if (d.achievements) S.achievements = d.achievements;
+    if (d.weakAreas) S.weakAreas = d.weakAreas;
+    if (d.activityLog) S.activityLog = d.activityLog;
+    if (d.xpHistory) S.xpHistory = d.xpHistory;
+    if (d.settings) S.settings = d.settings;
+    if (d.learnedKanji) S.learnedKanji = d.learnedKanji;
+    else if (d.progress && d.progress.learnedKanji) S.learnedKanji = d.progress.learnedKanji;
+    if (d.reminders && d.reminders.length) reminders = d.reminders;
+    if (d.username || d._username) S.username = d.username || d._username;
+  }
+}
+
+// ── API (Local-First + Server Sync) ──
 const api = async (method, path, body) => {
-  // For guests — save to localStorage instead of hitting server
+  // Always update in-memory state and save to local storage immediately
+  if (method === 'PATCH' && body) {
+    if (body.reminders !== undefined) reminders = body.reminders;
+    Object.keys(body).forEach(k => { if (body[k] !== undefined) S[k] = body[k]; });
+    if (body.progress && !body.learnedKanji && S.learnedKanji) {
+      body.learnedKanji = S.learnedKanji;
+    }
+    saveLocalState();
+  } else if (method === 'POST') {
+    if (path === '/api/study-time' && body && body.seconds) {
+      S.studyTimeSeconds = (S.studyTimeSeconds || 0) + body.seconds;
+      saveLocalState();
+    } else if (path === '/api/xp' && body && body.amount) {
+      S.xp = (S.xp || 0) + body.amount;
+      saveLocalState();
+    }
+  }
+
+  // If Guest, local storage is the source of truth
   if (isGuest) {
     if (method === 'GET') {
-      const d = loadGuestState();
+      const d = loadLocalState();
       return { success: true, data: d || {} };
-    }
-    if (method === 'PATCH' && body) {
-      if (body.reminders !== undefined) reminders = body.reminders;
-      Object.keys(body).forEach(k => { if (body[k] !== undefined) S[k] = body[k]; });
-      saveGuestState();
-      return { success: true };
     }
     return { success: true };
   }
-  try{
-    const r=await fetch(path,{
+
+  // For Logged-in users, sync to server
+  try {
+    const r = await fetch(path, {
       method,
-      headers:{
-        'Content-Type':'application/json',
+      headers: {
+        'Content-Type': 'application/json',
         'x-user-email': currentUser || '',
         ...(currentToken ? { 'Authorization': `Bearer ${currentToken}` } : {})
       },
-      body:body?JSON.stringify(body):undefined
+      body: body ? JSON.stringify(body) : undefined
     });
     const res = await r.json();
     return res;
-  }catch(e){return{success:false,error:e.message};}
+  } catch(e) {
+    console.warn('Server sync offline/unavailable, preserved local state:', e.message);
+    return { success: true, localOnly: true };
+  }
 };
 
 // ── AUTHENTICATION ──
@@ -126,12 +217,10 @@ async function handleAuth(type) {
     return;
   }
 
-  // Show loading state
   const originalText = btn ? btn.textContent : '';
   if (btn) { btn.textContent = 'Please wait...'; btn.disabled = true; }
 
   try {
-    // IMPORTANT: Use direct fetch — bypasses the guest-mode api() interceptor
     const r = await fetch(`/api/auth/${type}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -143,6 +232,25 @@ async function handleAuth(type) {
       localStorage.setItem('jlptEmail', email);
       localStorage.setItem('jlptToken', res.token);
       localStorage.removeItem('jlptGuest');
+      isGuest = false;
+      currentUser = email;
+      currentToken = res.token;
+
+      // Migrate existing local progress into the account
+      const localState = loadLocalState();
+      if (localState) {
+        try {
+          await fetch('/api/state', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-user-email': email,
+              'Authorization': `Bearer ${res.token}`
+            },
+            body: JSON.stringify(localState)
+          });
+        } catch(e) {}
+      }
       location.reload();
     } else {
       errEl.textContent = res.error || 'Authentication failed. Please try again.';
@@ -158,7 +266,7 @@ async function handleAuth(type) {
 function handleLogout() {
   localStorage.removeItem('jlptEmail');
   localStorage.removeItem('jlptToken');
-  localStorage.removeItem('jlptGuest');
+  localStorage.setItem('jlptGuest', 'true');
   location.reload();
 }
 function continueAsGuest() {
@@ -170,17 +278,20 @@ function continueAsGuest() {
 
 // ── INIT ──
 async function init(){
-  // If not logged in, we auto-default to Guest above (at top level variable init)
-  // so we always proceed unless someone EXPLICITLY wants to see auth
-  
-  const al = document.getElementById('auth-layer');
-  if (currentUser) {
-    al.style.display = 'none';
-  } else {
-    // If guest, we just check if they are "active guest" or "fresh guest"
-    // The top-level init already did the heavy lifting.
-    al.style.display = 'none';
+  // 1. Immediately hydrate from local storage
+  const localData = loadLocalState();
+  if (localData) {
+    applyStateData(localData, false);
   }
+
+  const DEFAULT_REMINDERS = [
+    { id: 1, time: '08:00', label: 'Morning vocabulary practice!', enabled: true },
+    { id: 2, time: '21:00', label: 'Evening grammar review!', enabled: true }
+  ];
+  if (!reminders || !reminders.length) reminders = DEFAULT_REMINDERS;
+
+  const al = document.getElementById('auth-layer');
+  if (al) al.style.display = 'none';
   document.body.style.overflow = 'auto';
 
   const navAuthBtn = document.getElementById('navAuthBtn');
@@ -194,35 +305,41 @@ async function init(){
     }
   }
 
-  const r=await api('GET','/api/state');
-  if(r.success&&r.data){
-    const d=r.data;
-    S.level=d.level||'N5'; S.xp=d.xp||0; S.streak=d.streak||0;
-    S.lastStudied=d.lastStudied||null; S.studyTimeSeconds=d.studyTimeSeconds||0;
-    S.completedLessons=d.completedLessons||[]; S.testResults=d.testResults||[];
-    S.progress=d.progress||{}; S.achievements=d.achievements||[];
-    S.weakAreas=d.weakAreas||{}; S.activityLog=d.activityLog||{};
-    S.xpHistory=d.xpHistory||[];
-    if(d.settings)S.settings=d.settings;
-    const DEFAULT_REMINDERS = [
-      { id: 1, time: '08:00', label: 'Morning vocabulary practice!', enabled: true },
-      { id: 2, time: '21:00', label: 'Evening grammar review!', enabled: true }
-    ];
-    reminders = (d.reminders && d.reminders.length) ? d.reminders : DEFAULT_REMINDERS;
-    if(d.learnedKanji) S.learnedKanji=d.learnedKanji;
-    else if(S.progress.learnedKanji) S.learnedKanji=S.progress.learnedKanji;
-    if(d._username) S.username = d._username; // Set from backup state
-  }
   if (!S.username && currentUser) S.username = currentUser.split('@')[0];
   applyTheme();
   updateLevelUI();
-  // Auto-mark visit — counts just opening the site as a study day
+  
+  // Auto-mark visit for study streak
   markActivity();
-  checkStreak();
+  
+  // Initial render
   renderDashboard();
   renderStudyTimer();
   initReminderEngine();
-  if(!document.querySelector('.mob-nav'))initMobileNav();
+  if(!document.querySelector('.mob-nav')) initMobileNav();
+
+  // 2. In background, if logged in, sync with server and merge
+  if (!isGuest && currentUser) {
+    try {
+      const r = await api('GET', '/api/state');
+      if (r && r.success && r.data && Object.keys(r.data).length > 0) {
+        applyStateData(r.data, true);
+        saveLocalState();
+        updateLevelUI();
+        renderDashboard();
+        // Persist merged data back to server
+        api('PATCH', '/api/state', {
+          xp: S.xp, streak: S.streak, lastStudied: S.lastStudied,
+          studyTimeSeconds: S.studyTimeSeconds, progress: S.progress,
+          learnedKanji: S.learnedKanji, testResults: S.testResults,
+          weakAreas: S.weakAreas, activityLog: S.activityLog,
+          xpHistory: S.xpHistory
+        });
+      }
+    } catch(e) {
+      console.warn('Background server sync error:', e);
+    }
+  }
 }
 
 // ── THEME ──
@@ -461,6 +578,16 @@ function writingTab(name,btn){
   btn.classList.add('active');
   if(name==='katakana'&&!document.getElementById('katakana-grid').innerHTML)renderKanaGrid('katakana');
 }
+function grammarTab(name, btn) {
+  const p = document.getElementById('grammar-sub-patterns');
+  const pt = document.getElementById('grammar-sub-particles');
+  const t = document.getElementById('grammar-sub-tenses');
+  if (p) p.style.display = name === 'patterns' ? 'block' : 'none';
+  if (pt) pt.style.display = name === 'particles' ? 'block' : 'none';
+  if (t) t.style.display = name === 'tenses' ? 'block' : 'none';
+  document.querySelectorAll('.grammar-tabs .stab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
 function renderKanaGrid(type){
   const data=type==='hiragana'?HIRAGANA:KATAKANA;
   const grid=document.getElementById(type+'-grid');
@@ -515,7 +642,7 @@ async function toggleVocab(key, el, name) {
     toast('Unmarked');
   }
   markActivity();
-  api('PATCH', '/api/state', { progress: S.progress });
+  api('PATCH', '/api/state', { progress: S.progress, streak: S.streak, lastStudied: S.lastStudied, activityLog: S.activityLog });
 }
 function renderGrammar(){
   const data=GRAMMAR[S.level]||[];
@@ -551,7 +678,7 @@ async function toggleGrammar(key, el, name) {
     toast('Unmarked');
   }
   markActivity();
-  api('PATCH', '/api/state', { progress: S.progress });
+  api('PATCH', '/api/state', { progress: S.progress, streak: S.streak, lastStudied: S.lastStudied, activityLog: S.activityLog });
 }
 // ── KANJI MODAL & STROKE ORDER SYSTEM ──
 let currentKanjiObj = null;
@@ -767,7 +894,7 @@ async function toggleKanjiFromModal(){
   updateModalLearnedBtn();
   renderKanji(document.querySelector('#kanjiFilterBar .filter-chip.on')?.textContent?.toLowerCase() || 'all');
   markActivity();
-  await api('PATCH','/api/state',{progress:S.progress,streak:S.streak,lastStudied:S.lastStudied,activityLog:S.activityLog});
+  await api('PATCH','/api/state',{learnedKanji:S.learnedKanji,progress:S.progress,streak:S.streak,lastStudied:S.lastStudied,activityLog:S.activityLog});
   if(S.learnedKanji[currentKanjiKey]) toast('Kanji learned! ✓ ' + (currentKanjiObj?.en || ''));
   else toast('Unmarked');
 }
@@ -2688,7 +2815,11 @@ function closeConfirmModal(){
 async function executeReset(){
   closeConfirmModal();
   S.xp=0;S.streak=0;S.progress={};S.learnedKanji={};S.testResults=[];S.studyTimeSeconds=0;
-  S.weakAreas={};
+  S.weakAreas={};S.xpHistory=[];S.activityLog={};
+  try {
+    localStorage.removeItem(LS_APP_KEY);
+    localStorage.removeItem(LS_GUEST_KEY);
+  } catch(e) {}
   toast('Resetting study data...');
   const res = await api('POST','/api/state/reset');
   if(res.success){

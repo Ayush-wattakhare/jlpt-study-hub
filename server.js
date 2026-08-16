@@ -167,9 +167,9 @@ app.patch('/api/state', async (req, res) => {
   if (id === 'guest') return res.json({ success: true });
   
   const user = await dbGet(id);
-  const state = user ? user.state : JSON.parse(JSON.stringify(defaultState));
+  const state = (user && user.state && typeof user.state === 'object') ? user.state : JSON.parse(JSON.stringify(defaultState));
   Object.keys(req.body).forEach(k => { if (req.body[k] !== undefined) state[k] = req.body[k]; });
-  await dbSave(id, { password: user ? user.password : '', state });
+  await dbSave(id, { password: user ? user.password : '', username: user ? user.username : '', state });
   res.json({ success: true });
 });
 
@@ -177,7 +177,7 @@ app.post('/api/state/reset', async (req, res) => {
   const id = req.userEmail;
   if (id !== 'guest') {
     const user = await dbGet(id);
-    await dbSave(id, { password: user ? user.password : '', state: JSON.parse(JSON.stringify(defaultState)) });
+    await dbSave(id, { password: user ? user.password : '', username: user ? user.username : '', state: JSON.parse(JSON.stringify(defaultState)) });
   }
   res.json({ success: true });
 });

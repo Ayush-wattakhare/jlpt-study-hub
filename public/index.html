@@ -52,7 +52,7 @@
     </div>
 
     <div style="display:flex;flex-direction:column;gap:12px;margin-top:10px;border-top:1px solid var(--border);padding-top:20px">
-      <button style="border:none;background:none;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer;font-family:var(--font-body)" onclick="continueAsGuest()">Continue as Guest (No saving)</button>
+      <button style="border:none;background:none;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer;font-family:var(--font-body)" onclick="continueAsGuest()">Continue as Guest (Saved on this device)</button>
       <button style="border:none;background:none;color:var(--indigo);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-body)" onclick="closeAuthPage()">← Back to App (Maybe Later)</button>
     </div>
   </div>
@@ -738,7 +738,637 @@
   </div>
   <!-- Grammar -->
   <div class="learn-section" id="ls-grammar">
-    <div id="grammarList"></div>
+    <div class="writing-tabs grammar-tabs" style="margin-bottom: 20px;">
+      <button class="stab active" onclick="grammarTab('patterns', this)">📘 Grammar Patterns</button>
+      <button class="stab" onclick="grammarTab('particles', this)">🧩 Particles Guide (助詞)</button>
+      <button class="stab" onclick="grammarTab('tenses', this)">⏳ Tenses &amp; Conjugations (時制・動詞活用)</button>
+    </div>
+
+    <!-- 1. Grammar Patterns List -->
+    <div id="grammar-sub-patterns">
+      <p class="hint-text" style="margin-bottom:16px;">💡 Click any card to expand/collapse full explanations, real-life examples, and nuance notes. Mark patterns as learned to track your JLPT mastery!</p>
+      <div id="grammarList"></div>
+    </div>
+
+    <!-- 2. Particles Guide -->
+    <div id="grammar-sub-particles" style="display:none">
+      <div class="pnd-header" style="margin-bottom: 24px;">
+        <h2 style="font-family:var(--font-display); font-size:24px; color:var(--ink); margin-bottom:8px;">
+          🧩 Japanese Particles Master Guide (助詞)
+        </h2>
+        <p style="color:var(--muted); font-size:14px; line-height:1.5;">
+          Particles (助詞 - joshi) are the glue of Japanese grammar. They follow words to indicate their grammatical role (topic, subject, object, destination, means, time, reason, etc.). Click 🔊 on any example to hear native audio!
+        </p>
+      </div>
+
+      <!-- Core Case Particles -->
+      <div class="pnd-card">
+        <div class="pnd-card-header">
+          <h3 class="pnd-card-title">1. Essential Case Particles (格助詞)</h3>
+          <span class="pnd-badge indigo">Core Grammar Foundation</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="pnd-table">
+            <thead>
+              <tr>
+                <th>Particle</th>
+                <th>Role &amp; Function</th>
+                <th>Example Sentence</th>
+                <th>Romaji</th>
+                <th>English Meaning</th>
+                <th>Audio</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="part-pill">は</span><code>wa (ha)</code></td>
+                <td><strong>Topic Marker</strong><br><small style="color:var(--muted)">Defines what the sentence is about</small></td>
+                <td><strong class="jp-text">わたし<span style="color:var(--indigo);font-weight:700">は</span>学生です。</strong></td>
+                <td><code>Watashi wa gakusei desu.</code></td>
+                <td>I am a student.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('わたしはがくせいです')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><span class="part-pill">は</span><code>wa (ha)</code></td>
+                <td><strong>Contrastive Marker</strong><br><small style="color:var(--muted)">Contrasting two statements</small></td>
+                <td><strong class="jp-text">肉<span style="color:var(--indigo);font-weight:700">は</span>食べますが、魚<span style="color:var(--indigo);font-weight:700">は</span>食べません。</strong></td>
+                <td><code>Niku wa tabemasu ga, sakana wa tabemasen.</code></td>
+                <td>I eat meat, but I don't eat fish.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('にくはたべますが、さかなはたべません')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><span class="part-pill teal">が</span><code>ga</code></td>
+                <td><strong>Subject / Identifier</strong><br><small style="color:var(--muted)">Identifies specific actor / new info</small></td>
+                <td><strong class="jp-text">だれ<span style="color:var(--teal);font-weight:700">が</span>来ましたか。</strong></td>
+                <td><code>Dare ga kimashita ka?</code></td>
+                <td>Who came? (focus on "who")</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('だれがきましたか')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><span class="part-pill teal">が</span><code>ga</code></td>
+                <td><strong>Existence / Ability / Liking</strong><br><small style="color:var(--muted)">With います, あります, 好き, わかる, できる</small></td>
+                <td><strong class="jp-text">日本語<span style="color:var(--teal);font-weight:700">が</span>分かります。</strong></td>
+                <td><code>Nihongo ga wakarimasu.</code></td>
+                <td>I understand Japanese.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('にほんごがわかります')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><span class="part-pill red">を</span><code>o (wo)</code></td>
+                <td><strong>Direct Object</strong><br><small style="color:var(--muted)">The receiver of an action</small></td>
+                <td><strong class="jp-text">本<span style="color:var(--red);font-weight:700">を</span>読みます。</strong></td>
+                <td><code>Hon wo yomimasu.</code></td>
+                <td>I read a book.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('ほんをよみます')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><span class="part-pill red">を</span><code>o (wo)</code></td>
+                <td><strong>Point of Departure / Motion Space</strong><br><small style="color:var(--muted)">Leaving or passing through</small></td>
+                <td><strong class="jp-text">公園<span style="color:var(--red);font-weight:700">を</span>散歩します。</strong></td>
+                <td><code>Kouen wo sanpo shimasu.</code></td>
+                <td>I take a walk through the park.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('こうえんをさんぽします')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><span class="part-pill gold">に</span><code>ni</code></td>
+                <td><strong>Specific Time</strong><br><small style="color:var(--muted)">Time with numbers (at 7:00, on Monday)</small></td>
+                <td><strong class="jp-text">七時<span style="color:var(--gold);font-weight:700">に</span>起きます。</strong></td>
+                <td><code>Shichiji ni okimasu.</code></td>
+                <td>I wake up at 7 o'clock.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('しちじにおきます')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><span class="part-pill gold">に</span><code>ni</code></td>
+                <td><strong>Destination / Target / Receiver</strong><br><small style="color:var(--muted)">Going to, giving to, meeting someone</small></td>
+                <td><strong class="jp-text">友達<span style="color:var(--gold);font-weight:700">に</span>会います。</strong></td>
+                <td><code>Tomodachi ni aimasu.</code></td>
+                <td>I meet a friend.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('ともだちにあいます')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><span class="part-pill gold">に</span><code>ni</code></td>
+                <td><strong>Location of Existence</strong><br><small style="color:var(--muted)">Where something exists (あります / います)</small></td>
+                <td><strong class="jp-text">部屋<span style="color:var(--gold);font-weight:700">に</span>猫がいます。</strong></td>
+                <td><code>Heya ni neko ga imasu.</code></td>
+                <td>There is a cat in the room.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('へやにねこがいます')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><span class="part-pill">で</span><code>de</code></td>
+                <td><strong>Location of Action</strong><br><small style="color:var(--muted)">Where an activity happens</small></td>
+                <td><strong class="jp-text">図書館<span style="color:var(--indigo);font-weight:700">で</span>勉強します。</strong></td>
+                <td><code>Toshokan de benkyou shimasu.</code></td>
+                <td>I study at the library.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('としょかんでべんきょうします')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><span class="part-pill">で</span><code>de</code></td>
+                <td><strong>Means / Tool / Language / Transport</strong><br><small style="color:var(--muted)">By means of, using</small></td>
+                <td><strong class="jp-text">電車<span style="color:var(--indigo);font-weight:700">で</span>行きます。</strong></td>
+                <td><code>Densha de ikimasu.</code></td>
+                <td>I go by train.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('でんしゃでいきます')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><span class="part-pill">へ</span><code>e (he)</code></td>
+                <td><strong>Direction of Movement</strong><br><small style="color:var(--muted)">Towards / heading to (pronounced 'e')</small></td>
+                <td><strong class="jp-text">日本<span style="color:var(--indigo);font-weight:700">へ</span>ようこそ。</strong></td>
+                <td><code>Nihon e youkoso.</code></td>
+                <td>Welcome to Japan.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('にほんへようこそ')" title="Listen">🔊</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Connecting & Scope Particles -->
+      <div class="pnd-card">
+        <div class="pnd-card-header">
+          <h3 class="pnd-card-title">2. Connecting, Scope &amp; Comparison Particles (接続・副助詞)</h3>
+          <span class="pnd-badge teal">Linking &amp; Context</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="pnd-table">
+            <thead>
+              <tr>
+                <th>Particle</th>
+                <th>Meaning &amp; Usage</th>
+                <th>Example Sentence</th>
+                <th>Romaji</th>
+                <th>English Meaning</th>
+                <th>Audio</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong class="jp-text">と</strong> <code>to</code></td>
+                <td><strong>Complete Listing ("and")</strong><br><small style="color:var(--muted)">Exhaustive list of all items</small></td>
+                <td><strong class="jp-text">パン<span style="color:var(--teal);font-weight:700">と</span>卵を食べました。</strong></td>
+                <td><code>Pan to tamago wo tabemashita.</code></td>
+                <td>I ate bread and eggs.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('パンとたまごをたべました')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong class="jp-text">と</strong> <code>to</code></td>
+                <td><strong>Together With ("with")</strong><br><small style="color:var(--muted)">Accompanying person/partner</small></td>
+                <td><strong class="jp-text">友達<span style="color:var(--teal);font-weight:700">と</span>映画を見ます。</strong></td>
+                <td><code>Tomodachi to eiga wo mimasu.</code></td>
+                <td>I watch a movie with a friend.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('ともだちとえいがをみます')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong class="jp-text">も</strong> <code>mo</code></td>
+                <td><strong>Also / Too / Neither</strong><br><small style="color:var(--muted)">Replaces は, が, を</small></td>
+                <td><strong class="jp-text">わたし<span style="color:var(--teal);font-weight:700">も</span>学生です。</strong></td>
+                <td><code>Watashi mo gakusei desu.</code></td>
+                <td>I am also a student.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('わたしもがくせいです')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong class="jp-text">の</strong> <code>no</code></td>
+                <td><strong>Possession / Modifier ("'s / of")</strong><br><small style="color:var(--muted)">Noun modifies another noun</small></td>
+                <td><strong class="jp-text">これ<span style="color:var(--teal);font-weight:700">は</span>わたし<span style="color:var(--teal);font-weight:700">の</span>本です。</strong></td>
+                <td><code>Kore wa watashi no hon desu.</code></td>
+                <td>This is my book.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('これはわたしのほんです')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong class="jp-text">から</strong> <code>kara</code></td>
+                <td><strong>Starting Point ("from")</strong><br><small style="color:var(--muted)">Origin time, place, source</small></td>
+                <td><strong class="jp-text">九時<span style="color:var(--teal);font-weight:700">から</span>始まります。</strong></td>
+                <td><code>Kuji kara hajimarimasu.</code></td>
+                <td>It starts from 9:00.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('くじからはじまります')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong class="jp-text">まで</strong> <code>made</code></td>
+                <td><strong>Endpoint ("until / up to")</strong><br><small style="color:var(--muted)">Ending time or destination limit</small></td>
+                <td><strong class="jp-text">五時<span style="color:var(--teal);font-weight:700">まで</span>働きます。</strong></td>
+                <td><code>Goji made hatarakimasu.</code></td>
+                <td>I work until 5:00.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('ごじまではたらきます')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong class="jp-text">より</strong> <code>yori</code></td>
+                <td><strong>Comparison ("more than")</strong><br><small style="color:var(--muted)">Standard of comparison</small></td>
+                <td><strong class="jp-text">新幹線はバス<span style="color:var(--teal);font-weight:700">より</span>速いです。</strong></td>
+                <td><code>Shinkansen wa basu yori hayai desu.</code></td>
+                <td>The Shinkansen is faster than a bus.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('しんかんせんはバスよりはやいです')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong class="jp-text">や〜など</strong> <code>ya... nado</code></td>
+                <td><strong>Incomplete Listing ("and things like...")</strong><br><small style="color:var(--muted)">Non-exhaustive list of examples</small></td>
+                <td><strong class="jp-text">机の上に本<span style="color:var(--teal);font-weight:700">や</span>ペン<span style="color:var(--teal);font-weight:700">など</span>があります。</strong></td>
+                <td><code>Tsukue no ue ni hon ya pen nado ga arimasu.</code></td>
+                <td>On the desk there are books, pens, etc.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('つくえのうえにほんやペンなどがあります')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong class="jp-text">か</strong> <code>ka</code></td>
+                <td><strong>Choice ("or" between nouns)</strong><br><small style="color:var(--muted)">Selecting between options</small></td>
+                <td><strong class="jp-text">お茶<span style="color:var(--teal);font-weight:700">か</span>コーヒーを飲みます。</strong></td>
+                <td><code>O-cha ka koohii wo nomimasu.</code></td>
+                <td>I will drink tea or coffee.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('おちゃかコーヒーをのみます')" title="Listen">🔊</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Sentence Ending Particles -->
+      <div class="pnd-card">
+        <div class="pnd-card-header">
+          <h3 class="pnd-card-title">3. Sentence-Ending Particles (終助詞)</h3>
+          <span class="pnd-badge gold">Conversational Nuance</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="pnd-table">
+            <thead>
+              <tr>
+                <th>Particle</th>
+                <th>Nuance &amp; Tone</th>
+                <th>Example Sentence</th>
+                <th>Romaji</th>
+                <th>English Meaning</th>
+                <th>Audio</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong class="jp-text">か</strong> <code>ka</code></td>
+                <td><strong>Question Marker (?)</strong><br><small style="color:var(--muted)">Turns a sentence into a question</small></td>
+                <td><strong class="jp-text">お元気です<span style="color:var(--gold);font-weight:700">か</span>。</strong></td>
+                <td><code>O-genki desu ka?</code></td>
+                <td>How are you? / Are you well?</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('おげんきですか')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong class="jp-text">ね</strong> <code>ne</code></td>
+                <td><strong>Agreement / Seeking Confirmation ("right? / isn't it?")</strong><br><small style="color:var(--muted)">Speaker expects listener to agree</small></td>
+                <td><strong class="jp-text">今日はいい天気です<span style="color:var(--gold);font-weight:700">ね</span>。</strong></td>
+                <td><code>Kyou wa ii tenki desu ne.</code></td>
+                <td>It's nice weather today, isn't it?</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('きょうはいいてんきですね')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong class="jp-text">よ</strong> <code>yo</code></td>
+                <td><strong>Information Provider / Emphasis ("you know! / I assure you")</strong><br><small style="color:var(--muted)">Sharing new knowledge</small></td>
+                <td><strong class="jp-text">このラーメンはとてもおいしいです<span style="color:var(--gold);font-weight:700">よ</span>。</strong></td>
+                <td><code>Kono raamen wa totemo oishii desu yo.</code></td>
+                <td>This ramen is very delicious, you know!</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('このラーメンはとてもおいしいですよ')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong class="jp-text">よね</strong> <code>yo ne</code></td>
+                <td><strong>Confident Agreement Request ("Right? I'm sure we agree")</strong><br><small style="color:var(--muted)">Sharing info and seeking agreement</small></td>
+                <td><strong class="jp-text">明日はテストです<span style="color:var(--gold);font-weight:700">よね</span>。</strong></td>
+                <td><code>Ashita wa tesuto desu yo ne.</code></td>
+                <td>Tomorrow is the test, right?</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('あしたはテストですよね')" title="Listen">🔊</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Critical Particle Comparisons -->
+      <div class="pnd-card">
+        <div class="pnd-card-header">
+          <h3 class="pnd-card-title">4. ⚡ Crucial Particle Comparisons (よく間違える助詞の違い)</h3>
+          <span class="pnd-badge red">JLPT Exam Traps</span>
+        </div>
+        <div class="pnd-extra-grid">
+          <div class="pnd-extra-item tip-indigo">
+            <h4>⚖️ は (wa) vs. が (ga)</h4>
+            <p>
+              • <strong>は (Topic)</strong>: Focuses on what comes AFTER it (the predicate). <code>田中さんは学生です</code> (As for Tanaka, he is a student).<br>
+              • <strong>が (Subject/Identifier)</strong>: Focuses on WHO/WHAT comes BEFORE it. <code>田中さんが来ました</code> (Tanaka is the one who came).<br>
+              • <strong>Question words</strong>: Always followed by <strong>が</strong>: <code>だれが来ましたか？</code>
+            </p>
+          </div>
+          <div class="pnd-extra-item tip-gold">
+            <h4>⚖️ に (ni) vs. で (de)</h4>
+            <p>
+              • <strong>に (Existence &amp; Destination)</strong>: Indicates location of STATIC existence or arrival. <code>部屋に猫がいる</code> (A cat is in the room) / <code>学校に行く</code> (Go to school).<br>
+              • <strong>で (Action &amp; Means)</strong>: Indicates location where an DYNAMIC action takes place. <code>図書館で勉強する</code> (Study at the library) / <code>バスで行く</code> (Go by bus).
+            </p>
+          </div>
+          <div class="pnd-extra-item tip-indigo">
+            <h4>⚖️ に (ni) vs. へ (e)</h4>
+            <p>
+              • <strong>に (Destination / Goal Point)</strong>: Emphasizes the exact arrival destination. <code>東京に着きます</code> (Arrive in Tokyo).<br>
+              • <strong>へ (Direction)</strong>: Emphasizes heading toward a direction or journey path. <code>未来へ進む</code> (Move toward the future).
+            </p>
+          </div>
+          <div class="pnd-extra-item tip-gold">
+            <h4>⚖️ と (to) vs. や (ya)</h4>
+            <p>
+              • <strong>と (Exhaustive)</strong>: Lists EVERY item in the set: <code>りんごとみかん</code> (Apples and oranges — only these two).<br>
+              • <strong>や (Non-exhaustive)</strong>: Lists representative examples from a larger group: <code>りんごやみかん (など)</code> (Apples, oranges, and other fruits).
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Tenses & Verb Conjugations -->
+    <div id="grammar-sub-tenses" style="display:none">
+      <div class="pnd-header" style="margin-bottom: 24px;">
+        <h2 style="font-family:var(--font-display); font-size:24px; color:var(--ink); margin-bottom:8px;">
+          ⏳ Japanese Tenses &amp; Verb Conjugations (時制・動詞の活用)
+        </h2>
+        <p style="color:var(--muted); font-size:14px; line-height:1.5;">
+          Japanese has two main tenses: <strong>Non-Past (Present/Future)</strong> and <strong>Past</strong>, divided into <strong>Polite (丁寧語)</strong> and <strong>Plain/Casual (普通形)</strong> forms. Master the 3 verb groups and conjugations below! Click 🔊 on any example to hear native audio.
+        </p>
+      </div>
+
+      <!-- 1. The 3 Verb Groups -->
+      <div class="pnd-card">
+        <div class="pnd-card-header">
+          <h3 class="pnd-card-title">1. The 3 Japanese Verb Groups (動詞の3グループ分類)</h3>
+          <span class="pnd-badge indigo">Group Classification</span>
+        </div>
+        <div class="pnd-extra-grid">
+          <div class="pnd-extra-item" style="border-top:4px solid var(--teal)">
+            <h4>🔹 Group 1: 五段動詞 (Godan / U-Verbs)</h4>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:8px;">Verbs ending in <code>-u</code>, <code>-ku</code>, <code>-gu</code>, <code>-su</code>, <code>-tsu</code>, <code>-nu</code>, <code>-bu</code>, <code>-mu</code>, or <code>-ru</code> (preceded by a/u/o vowels).</p>
+            <p style="font-size:13px;"><strong>Conjugation Rule:</strong> Change the ending <code>-u</code> vowel to <code>-i</code> + <code>ます</code>.</p>
+            <ul style="margin-top:6px;font-size:13px;">
+              <li><strong>書く</strong> (kaku) → <code>書きます</code> (kakimasu - write) <button onclick="playJapaneseAudio('かく、かきます')" class="pnd-mini-audio">🔊</button></li>
+              <li><strong>飲む</strong> (nomu) → <code>飲みます</code> (nomimasu - drink) <button onclick="playJapaneseAudio('のむ、のみます')" class="pnd-mini-audio">🔊</button></li>
+              <li><strong>話す</strong> (hanasu) → <code>話します</code> (hanashimasu - speak) <button onclick="playJapaneseAudio('はなす、はなします')" class="pnd-mini-audio">🔊</button></li>
+              <li><strong>待つ</strong> (matsu) → <code>待ちます</code> (machimasu - wait) <button onclick="playJapaneseAudio('まつ、まちます')" class="pnd-mini-audio">🔊</button></li>
+              <li><strong>行く</strong> (iku) → <code>行きます</code> (ikimasu - go) <button onclick="playJapaneseAudio('いく、いきます')" class="pnd-mini-audio">🔊</button></li>
+            </ul>
+          </div>
+
+          <div class="pnd-extra-item" style="border-top:4px solid var(--indigo)">
+            <h4>🔹 Group 2: 一段動詞 (Ichidan / Ru-Verbs)</h4>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:8px;">Verbs ending in <code>-iru</code> or <code>-eru</code> (preceded by i/e vowels).</p>
+            <p style="font-size:13px;"><strong>Conjugation Rule:</strong> Drop <code>る (ru)</code> and add <code>ます</code>, <code>ない</code>, or <code>て</code> directly.</p>
+            <ul style="margin-top:6px;font-size:13px;">
+              <li><strong>食べる</strong> (taberu) → <code>食べます</code> (tabemasu - eat) <button onclick="playJapaneseAudio('たべる、たべます')" class="pnd-mini-audio">🔊</button></li>
+              <li><strong>見る</strong> (miru) → <code>見ます</code> (mimasu - see/watch) <button onclick="playJapaneseAudio('みる、みます')" class="pnd-mini-audio">🔊</button></li>
+              <li><strong>起きる</strong> (okiru) → <code>起きます</code> (okimasu - wake up) <button onclick="playJapaneseAudio('おきる、おきます')" class="pnd-mini-audio">🔊</button></li>
+              <li><strong>寝る</strong> (neru) → <code>寝ます</code> (nemasu - sleep) <button onclick="playJapaneseAudio('ねる、ねます')" class="pnd-mini-audio">🔊</button></li>
+              <li><strong>教える</strong> (oshieru) → <code>教えます</code> (oshiemasu - teach) <button onclick="playJapaneseAudio('おしえる、おしえます')" class="pnd-mini-audio">🔊</button></li>
+            </ul>
+          </div>
+
+          <div class="pnd-extra-item" style="border-top:4px solid var(--red)">
+            <h4>🔹 Group 3: 不規則動詞 (Irregular Verbs)</h4>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:8px;">Only two irregular verbs exist in Japanese! Memorize them directly:</p>
+            <ul style="margin-top:6px;font-size:13px;">
+              <li><strong>する</strong> (suru - to do):<br>
+                → <code>します</code> (shimasu - present polite)<br>
+                → <code>しない</code> (shinai - plain neg) / <code>した</code> (shita - plain past)<br>
+                → <code>して</code> (shite - te-form) <button onclick="playJapaneseAudio('する、します、しない、した、して')" class="pnd-mini-audio">🔊</button>
+              </li>
+              <li style="margin-top:8px;"><strong>来る</strong> (kuru - to come):<br>
+                → <code>来ます</code> (kimasu - present polite)<br>
+                → <code>来ない</code> (konai - plain neg) / <code>来た</code> (kita - plain past)<br>
+                → <code>来て</code> (kite - te-form) <button onclick="playJapaneseAudio('くる、きます、こない、きた、きて')" class="pnd-mini-audio">🔊</button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Master Verb Tense Matrix -->
+      <div class="pnd-card">
+        <div class="pnd-card-header">
+          <h3 class="pnd-card-title">2. Master Verb Tenses &amp; Moods Matrix (動詞時制・活用一覧)</h3>
+          <span class="pnd-badge teal">Polite &amp; Plain Comparison</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="pnd-table">
+            <thead>
+              <tr>
+                <th>Tense / Form</th>
+                <th>Polite Form (丁寧形)</th>
+                <th>Plain Form (普通形)</th>
+                <th>Full Example Sentence</th>
+                <th>Meaning</th>
+                <th>Audio</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Present / Future (+)</strong><br><small style="color:var(--muted)">Affirmative habit / future</small></td>
+                <td><span class="tense-badge-polite">〜ます</span><br><strong class="jp-text">食べます</strong></td>
+                <td><span class="tense-badge-plain">辞書形 (-u / -ru)</span><br><strong class="jp-text">食べる</strong></td>
+                <td><strong class="jp-text">明日、日本語を勉強します。</strong><br><small><code>Ashita, nihongo wo benkyou shimasu.</code></small></td>
+                <td>I will study Japanese tomorrow.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('あした、にほんごをべんきょうします')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong>Present / Future (-)</strong><br><small style="color:var(--muted)">Negative habit / future</small></td>
+                <td><span class="tense-badge-polite">〜ません</span><br><strong class="jp-text">食べません</strong></td>
+                <td><span class="tense-badge-plain">〜ない形</span><br><strong class="jp-text">食べない</strong></td>
+                <td><strong class="jp-text">わたしはお酒を飲みません。</strong><br><small><code>Watashi wa o-sake wo nomimasen.</code></small></td>
+                <td>I do not drink alcohol.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('わたしはおさけをのみません')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong>Past Affirmative (+)</strong><br><small style="color:var(--muted)">Completed action</small></td>
+                <td><span class="tense-badge-polite">〜ました</span><br><strong class="jp-text">食べました</strong></td>
+                <td><span class="tense-badge-plain">〜た形</span><br><strong class="jp-text">食べた</strong></td>
+                <td><strong class="jp-text">昨日、面白い映画を見ました。</strong><br><small><code>Kinou, omoshiroi eiga wo mimashita.</code></small></td>
+                <td>I watched an interesting movie yesterday.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('きのう、おもしろいえいがをみました')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong>Past Negative (-)</strong><br><small style="color:var(--muted)">Did not do</small></td>
+                <td><span class="tense-badge-polite">〜ませんでした</span><br><strong class="jp-text">食べませんでした</strong></td>
+                <td><span class="tense-badge-plain">〜なかった形</span><br><strong class="jp-text">食べなかった</strong></td>
+                <td><strong class="jp-text">宿題をしませんでした。</strong><br><small><code>Shukudai wo shimasen deshita.</code></small></td>
+                <td>I did not do the homework.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('しゅくだいをしませんでした')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong>Present Continuous / State</strong><br><small style="color:var(--muted)">Action in progress / ongoing state</small></td>
+                <td><span class="tense-badge-polite">〜ています</span><br><strong class="jp-text">食べています</strong></td>
+                <td><span class="tense-badge-plain">〜ている</span><br><strong class="jp-text">食べている</strong></td>
+                <td><strong class="jp-text">今、本を読んでいます。</strong><br><small><code>Ima, hon wo yonde imasu.</code></small></td>
+                <td>I am reading a book right now.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('いま、ほんをよんでいます')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong>Past Continuous</strong><br><small style="color:var(--muted)">Was in progress in the past</small></td>
+                <td><span class="tense-badge-polite">〜ていました</span><br><strong class="jp-text">食べていました</strong></td>
+                <td><span class="tense-badge-plain">〜ていた</span><br><strong class="jp-text">食べていた</strong></td>
+                <td><strong class="jp-text">昨夜はテレビを見ていました。</strong><br><small><code>Sakuya wa terebi wo mite imashita.</code></small></td>
+                <td>I was watching TV last night.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('さくやはテレビをみていました')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong>Desire (Want to do)</strong><br><small style="color:var(--muted)">Conjugates like い-adjective</small></td>
+                <td><span class="tense-badge-polite">〜たいです</span><br><strong class="jp-text">食べたいです</strong></td>
+                <td><span class="tense-badge-plain">〜たい</span><br><strong class="jp-text">食べたい</strong></td>
+                <td><strong class="jp-text">日本へ行きたいです。</strong><br><small><code>Nihon e ikitai desu.</code></small></td>
+                <td>I want to go to Japan.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('にほんへいきたいです')" title="Listen">🔊</button></td>
+              </tr>
+              <tr>
+                <td><strong>Volitional / Suggestion</strong><br><small style="color:var(--muted)">"Let's do / Shall we?"</small></td>
+                <td><span class="tense-badge-polite">〜ましょう</span><br><strong class="jp-text">食べましょう</strong></td>
+                <td><span class="tense-badge-plain">〜よう / 〜おう</span><br><strong class="jp-text">食べよう</strong></td>
+                <td><strong class="jp-text">いっしょに昼ご飯を食べましょう。</strong><br><small><code>Issho ni hirugohan wo tabemashou.</code></small></td>
+                <td>Let's eat lunch together.</td>
+                <td><button class="pnd-audio-btn" onclick="playJapaneseAudio('いっしょにひるごはんをたべましょう')" title="Listen">🔊</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 3. Te-Form Song & Cheat Sheet -->
+      <div class="pnd-card">
+        <div class="pnd-card-header">
+          <h3 class="pnd-card-title">3. Te-Form (〜て形) Master Cheat Sheet &amp; Song Rules</h3>
+          <span class="pnd-badge gold">Essential Conjugation Key</span>
+        </div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">The <strong>て-form</strong> is the most critical conjugation in Japanese — used for requests (〜てください), continuous tense (〜ている), permission (〜てもいい), prohibition (〜てはいけない), and connecting sequential actions!</p>
+        
+        <div class="te-rhyme-grid">
+          <div class="te-rhyme-box">
+            <div class="te-rhyme-header">1. う・つ・る (u, tsu, ru)</div>
+            <div class="te-rhyme-rule">→ って (-tte)</div>
+            <div class="te-rhyme-ex">
+              • 買う (kau) → <code>買って</code> (katte)<br>
+              • 待つ (matsu) → <code>待って</code> (matte)<br>
+              • 帰る (kaeru) → <code>帰って</code> (kaette)
+            </div>
+          </div>
+          <div class="te-rhyme-box">
+            <div class="te-rhyme-header">2. む・ぶ・ぬ (mu, bu, nu)</div>
+            <div class="te-rhyme-rule">→ んで (-nde)</div>
+            <div class="te-rhyme-ex">
+              • 飲む (nomu) → <code>飲んで</code> (nonde)<br>
+              • 遊ぶ (asobu) → <code>遊んで</code> (asonde)<br>
+              • 死ぬ (shinu) → <code>死んで</code> (shinde)
+            </div>
+          </div>
+          <div class="te-rhyme-box">
+            <div class="te-rhyme-header">3. く (ku) / ぐ (gu)</div>
+            <div class="te-rhyme-rule">→ いて (-ite) / いで (-ide)</div>
+            <div class="te-rhyme-ex">
+              • 書く (kaku) → <code>書いて</code> (kaite)<br>
+              • 泳ぐ (oyogu) → <code>泳いで</code> (oyoide)<br>
+              <span style="color:var(--red);font-weight:600">⚠️ Exception:</span> 行く → <code>行って</code> (itte)
+            </div>
+          </div>
+          <div class="te-rhyme-box">
+            <div class="te-rhyme-header">4. す (su)</div>
+            <div class="te-rhyme-rule">→ して (-shite)</div>
+            <div class="te-rhyme-ex">
+              • 話す (hanasu) → <code>話して</code> (hanashite)<br>
+              • 出す (dasu) → <code>出して</code> (dashite)<br>
+              • 消す (kesu) → <code>消して</code> (keshite)
+            </div>
+          </div>
+          <div class="te-rhyme-box">
+            <div class="te-rhyme-header">5. 一段動詞 (Ichidan / Ru)</div>
+            <div class="te-rhyme-rule">Drop る → て (-te)</div>
+            <div class="te-rhyme-ex">
+              • 食べる (taberu) → <code>食べて</code> (tabete)<br>
+              • 見る (miru) → <code>見て</code> (mite)<br>
+              • 起きる (okiru) → <code>起きて</code> (okite)
+            </div>
+          </div>
+          <div class="te-rhyme-box">
+            <div class="te-rhyme-header">6. 不規則動詞 (Irregular)</div>
+            <div class="te-rhyme-rule">Special Conjugation</div>
+            <div class="te-rhyme-ex">
+              • する (suru) → <code>して</code> (shite)<br>
+              • 来る (kuru) → <code>来て</code> (kite)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Adjective & Noun Tenses -->
+      <div class="pnd-card">
+        <div class="pnd-card-header">
+          <h3 class="pnd-card-title">4. Adjective &amp; Noun Copula Tenses (形容詞・名詞の時制変化)</h3>
+          <span class="pnd-badge indigo">State &amp; Description Tenses</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="pnd-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Present Affirmative (+)</th>
+                <th>Present Negative (-)</th>
+                <th>Past Affirmative (+)</th>
+                <th>Past Negative (-)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>い-Adjective</strong><br><small style="color:var(--muted)">e.g. 暑い (hot)</small></td>
+                <td>
+                  <strong class="jp-text">暑いです</strong><br>
+                  <small><code>atsui desu</code> (It is hot)</small>
+                </td>
+                <td>
+                  <strong class="jp-text">暑くないです</strong><br>
+                  <small><code>atsukunai desu</code> (not hot)</small>
+                </td>
+                <td>
+                  <strong class="jp-text">暑かったです</strong><br>
+                  <small><code>atsukatta desu</code> (was hot)</small>
+                </td>
+                <td>
+                  <strong class="jp-text">暑くなかったです</strong><br>
+                  <small><code>atsukunakatta desu</code> (was not hot)</small>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>な-Adjective</strong><br><small style="color:var(--muted)">e.g. 静か (quiet)</small></td>
+                <td>
+                  <strong class="jp-text">静かです</strong><br>
+                  <small><code>shizuka desu</code> (It is quiet)</small>
+                </td>
+                <td>
+                  <strong class="jp-text">静かじゃないです</strong><br>
+                  <small><code>shizuka ja nai desu</code> (not quiet)</small>
+                </td>
+                <td>
+                  <strong class="jp-text">静かでした</strong><br>
+                  <small><code>shizuka deshita</code> (was quiet)</small>
+                </td>
+                <td>
+                  <strong class="jp-text">静かじゃなかったです</strong><br>
+                  <small><code>shizuka ja nakatta desu</code> (was not quiet)</small>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Noun + Copula</strong><br><small style="color:var(--muted)">e.g. 学生 (student)</small></td>
+                <td>
+                  <strong class="jp-text">学生です</strong><br>
+                  <small><code>gakusei desu</code> (I am a student)</small>
+                </td>
+                <td>
+                  <strong class="jp-text">学生じゃないです</strong><br>
+                  <small><code>gakusei ja nai desu</code> (not a student)</small>
+                </td>
+                <td>
+                  <strong class="jp-text">学生でした</strong><br>
+                  <small><code>gakusei deshita</code> (was a student)</small>
+                </td>
+                <td>
+                  <strong class="jp-text">学生じゃなかったです</strong><br>
+                  <small><code>gakusei ja nakatta desu</code> (was not a student)</small>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
   <!-- Kanji -->
   <div class="learn-section" id="ls-kanji">
