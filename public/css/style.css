@@ -1186,9 +1186,22 @@ body{font-family:var(--font-body);background:var(--surface);color:var(--ink);min
 .km-badge.category { background: var(--gold-soft); color: var(--gold); }
 .km-badge.strokes { background: var(--teal-soft); color: var(--teal); }
 .km-meaning { font-size: 20px; font-weight: 700; color: var(--ink); margin-bottom: 4px; text-transform: capitalize; }
-.km-readings { display: flex; gap: 16px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+.km-readings { display: flex; gap: 16px; font-size: 13px; color: var(--muted); flex-wrap: wrap; align-items: center; }
+.km-reading-row { display: inline-flex; align-items: center; gap: 6px; }
 .km-r-label { color: var(--muted); font-size: 12px; }
 .km-readings strong { color: var(--ink); font-weight: 600; }
+.km-romaji { font-family: var(--font-mono); font-size: 12px; color: var(--teal); font-weight: 600; }
+.km-audio-main-btn {
+  padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .2s; display: inline-flex; align-items: center; gap: 4px;
+}
+.km-audio-main-btn:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-soft); }
+.km-mini-audio-btn {
+  padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border);
+  background: var(--surface); font-size: 12px; cursor: pointer; transition: all .15s; line-height: 1;
+}
+.km-mini-audio-btn:hover { border-color: var(--teal); background: var(--teal-soft); transform: scale(1.08); }
 
 .km-learned-btn {
   padding: 8px 16px; border-radius: 999px; border: 1px solid var(--border);

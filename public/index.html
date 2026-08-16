@@ -78,17 +78,28 @@
 
     <!-- Header Section -->
     <div class="km-header">
-      <div class="km-char-badge" id="kmChar">一</div>
+      <div class="km-char-badge" id="kmChar" onclick="playCurrentKanjiAudio()" title="Click to hear pronunciation" style="cursor:pointer" role="button">一</div>
       <div class="km-header-info">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
           <span class="km-badge level" id="kmLevel">N5</span>
           <span class="km-badge category" id="kmCategory">numbers</span>
           <span class="km-badge strokes" id="kmStrokesBadge">1 stroke</span>
+          <button class="km-audio-main-btn" id="kmAudioBtn" onclick="playCurrentKanjiAudio()" title="Listen to Kanji Pronunciation">🔊 Listen</button>
         </div>
         <div class="km-meaning" id="kmMeaning">one</div>
-        <div class="km-readings">
-          <div><span class="km-r-label">音 (Onyomi):</span> <strong id="kmOn">イチ</strong></div>
-          <div><span class="km-r-label">訓 (Kunyomi):</span> <strong id="kmKun">ひとつ</strong></div>
+        <div class="km-readings" id="kmReadings">
+          <div class="km-reading-row">
+            <span class="km-r-label">音 (Onyomi):</span>
+            <strong id="kmOn">イチ</strong>
+            <span class="km-romaji" id="kmOnRom">(ichi)</span>
+            <button class="km-mini-audio-btn" id="kmOnAudio" onclick="playKanjiReadingAudio('on')" title="Listen Onyomi">🔊</button>
+          </div>
+          <div class="km-reading-row">
+            <span class="km-r-label">訓 (Kunyomi):</span>
+            <strong id="kmKun">ひとつ</strong>
+            <span class="km-romaji" id="kmKunRom">(hitotsu)</span>
+            <button class="km-mini-audio-btn" id="kmKunAudio" onclick="playKanjiReadingAudio('kun')" title="Listen Kunyomi">🔊</button>
+          </div>
         </div>
       </div>
       <div class="km-actions-group" style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;margin-left:auto;">

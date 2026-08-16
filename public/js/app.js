@@ -550,12 +550,124 @@ function buildCal(){
 
 // ── AUDIO TTS ──
 function playJapaneseAudio(text) {
-  if (!('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'ja-JP';
-  u.rate = 0.85;
-  window.speechSynthesis.speak(u);
+  if (!text || !('speechSynthesis' in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const cleanText = String(text).replace(/[/／·・]/g, '、').replace(/[()（）]/g, '').trim();
+    if (!cleanText || cleanText === '—') return;
+    const u = new SpeechSynthesisUtterance(cleanText);
+    u.lang = 'ja-JP';
+    u.rate = 0.85;
+    
+    // Pick Japanese voice if available
+    const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+    const jpVoice = voices.find(v => v.lang === 'ja-JP' || v.lang === 'ja_JP' || (v.lang && v.lang.startsWith('ja')));
+    if (jpVoice) u.voice = jpVoice;
+
+    window.speechSynthesis.speak(u);
+  } catch(e) {
+    console.warn('Speech synthesis error:', e);
+  }
+}
+
+function playCurrentKanjiAudio() {
+  if (!currentKanjiObj) return;
+  let toSpeak = '';
+  if (currentKanjiObj.kun && currentKanjiObj.kun !== '—') {
+    toSpeak = currentKanjiObj.kun.split('/')[0].trim();
+  } else if (currentKanjiObj.on && currentKanjiObj.on !== '—') {
+    toSpeak = currentKanjiObj.on.split('/')[0].trim();
+  } else {
+    toSpeak = currentKanjiObj.k || currentKanjiObj.char || '';
+  }
+  playJapaneseAudio(toSpeak);
+}
+
+function playKanjiReadingAudio(type) {
+  if (!currentKanjiObj) return;
+  const val = type === 'on' ? currentKanjiObj.on : currentKanjiObj.kun;
+  if (val && val !== '—') {
+    playJapaneseAudio(val);
+  } else if (currentKanjiObj.k || currentKanjiObj.char) {
+    playJapaneseAudio(currentKanjiObj.k || currentKanjiObj.char);
+  }
+}
+
+// ── KANA TO ROMAJI CONVERTER ──
+function kanaToRomaji(str) {
+  if (!str || str === '—') return '';
+  const map = {
+    'きゃ':'kya','きゅ':'kyu','きょ':'kyo','しゃ':'sha','しゅ':'shu','しょ':'sho',
+    'ちゃ':'cha','ちゅ':'chu','ちょ':'cho','にゃ':'nya','にゅ':'nyu','にょ':'nyo',
+    'ひゃ':'hya','ひゅ':'hyu','ひょ':'hyo','みゃ':'mya','みゅ':'myu','みょ':'myo',
+    'りゃ':'rya','りゅ':'ryu','りょ':'ryo','ぎゃ':'gya','ぎゅ':'gyu','ぎょ':'gyo',
+    'じゃ':'ja','じゅ':'ju','じょ':'jo','びゃ':'bya','びゅ':'byu','びょ':'byo',
+    'ぴゃ':'pya','ぴゅ':'pyu','ぴょ':'pyo',
+    'キャ':'kya','キュ':'kyu','キョ':'kyo','シャ':'sha','シュ':'shu','ショ':'sho',
+    'チャ':'cha','チュ':'chu','チョ':'cho','ニャ':'nya','ニュ':'nyu','ニョ':'nyo',
+    'ヒャ':'hya','ヒュ':'hyu','ヒョ':'hyo','ミャ':'mya','ミュ':'myu','ミョ':'myo',
+    'リャ':'rya','リュ':'ryu','リョ':'ryo','ギャ':'gya','ギュ':'gyu','ギョ':'gyo',
+    'ジャ':'ja','ジュ':'ju','ジョ':'jo','ビャ':'bya','ビュ':'byu','ビョ':'byo',
+    'ピャ':'pya','ピュ':'pyu','ピョ':'pyo',
+    'あ':'a','い':'i','う':'u','え':'e','お':'o',
+    'か':'ka','き':'ki','く':'ku','け':'ke','こ':'ko',
+    'さ':'sa','し':'shi','す':'su','せ':'se','そ':'so',
+    'た':'ta','ち':'chi','つ':'tsu','て':'te','と':'to',
+    'な':'na','に':'ni','ぬ':'nu','ね':'ne','の':'no',
+    'は':'ha','ひ':'hi','ふ':'fu','へ':'he','ほ':'ho',
+    'ま':'ma','み':'mi','む':'mu','め':'me','も':'mo',
+    'や':'ya','ゆ':'yu','よ':'yo',
+    'ら':'ra','り':'ri','る':'ru','れ':'re','ろ':'ro',
+    'わ':'wa','を':'wo','ん':'n',
+    'が':'ga','ぎ':'gi','ぐ':'gu','げ':'ge','ご':'go',
+    'ざ':'za','じ':'ji','ず':'zu','ぜ':'ze','ぞ':'zo',
+    'だ':'da','ぢ':'ji','づ':'zu','で':'de','ど':'do',
+    'ば':'ba','び':'bi','ぶ':'bu','べ':'be','ぼ':'bo',
+    'ぱ':'pa','ぴ':'pi','ぷ':'pu','ぺ':'pe','ぽ':'po',
+    'ア':'a','イ':'i','ウ':'u','エ':'e','オ':'o',
+    'カ':'ka','キ':'ki','ク':'ku','ケ':'ke','コ':'ko',
+    'サ':'sa','シ':'shi','ス':'su','セ':'se','ソ':'so',
+    'タ':'ta','チ':'chi','ツ':'tsu','テ':'te','ト':'to',
+    'ナ':'na','ニ':'ni','ヌ':'nu','ネ':'ne','ノ':'no',
+    'ハ':'ha','ヒ':'hi','フ':'fu','ヘ':'he','ホ':'ho',
+    'マ':'ma','ミ':'mi','ム':'mu','メ':'me','モ':'mo',
+    'ヤ':'ya','ユ':'yu','ヨ':'yo',
+    'ラ':'ra','リ':'ri','ル':'ru','レ':'re','ロ':'ro',
+    'ワ':'wa','ヲ':'wo','ン':'n',
+    'ガ':'ga','ぎ':'gi','グ':'gu','ゲ':'ge','ゴ':'go',
+    'ザ':'za','ジ':'ji','ズ':'zu','ゼ':'ze','ゾ':'zo',
+    'ダ':'da','ヂ':'ji','ヅ':'zu','デ':'de','ド':'do',
+    'バ':'ba','ビ':'bi','ブ':'bu','ベ':'be','ボ':'bo',
+    'パ':'pa','ピ':'pi','プ':'pu','ペ':'pe','ポ':'po',
+    'ー':'-'
+  };
+
+  const parts = str.split('/');
+  return parts.map(part => {
+    let p = part.trim();
+    let res = '';
+    for (let i = 0; i < p.length; i++) {
+      if (p[i] === 'っ' || p[i] === 'ッ') {
+        const nextTwo = p.substr(i + 1, 2);
+        const nextOne = p.substr(i + 1, 1);
+        const nextRom = map[nextTwo] || map[nextOne];
+        if (nextRom) {
+          res += nextRom[0];
+          continue;
+        }
+      }
+      const two = p.substr(i, 2);
+      if (map[two]) {
+        res += map[two];
+        i++;
+      } else if (map[p[i]]) {
+        res += map[p[i]];
+      } else {
+        res += p[i];
+      }
+    }
+    return res;
+  }).join(' / ');
 }
 
 // ── LEARN ──
@@ -722,7 +834,7 @@ function openKanaModal(char, romaji, type, group) {
   currentModalIndex = currentModalList.findIndex(item => item.char === char);
   updateModalNavBtns();
 
-  currentKanjiObj = { k: char, on: romaji, kun: romaji, en: `${typeLabel} character '${char}' (${romaji})`, cat: group };
+  currentKanjiObj = { k: char, char: char, on: romaji, kun: romaji, en: `${typeLabel} character '${char}' (${romaji})`, cat: group };
   currentKanjiKey = 'kana_' + char;
   const strokeCount = char.length > 1 ? 3 : 2; // Default stroke count estimate for Kana
 
@@ -731,9 +843,13 @@ function openKanaModal(char, romaji, type, group) {
   document.getElementById('kmLevel').textContent = isHira ? 'Hiragana' : 'Katakana';
   document.getElementById('kmCategory').textContent = group || 'Kana';
   document.getElementById('kmStrokesBadge').textContent = strokeCount + ' strokes';
-  document.getElementById('kmMeaning').textContent = `Reading: "${romaji}" (${typeLabel})`;
+  document.getElementById('kmMeaning').textContent = `Sound: "${romaji}" · (${typeLabel})`;
   document.getElementById('kmOn').textContent = romaji;
-  document.getElementById('kmKun').textContent = romaji;
+  const onRomEl = document.getElementById('kmOnRom');
+  if (onRomEl) onRomEl.textContent = `(${romaji})`;
+  document.getElementById('kmKun').textContent = typeLabel;
+  const kunRomEl = document.getElementById('kmKunRom');
+  if (kunRomEl) kunRomEl.textContent = '';
 
   // Update Radical & Component info
   document.getElementById('kmRadicalText').textContent = `${typeLabel} - ${group}`;
@@ -795,14 +911,23 @@ async function openKanjiModal(kanjiChar){
   currentKanjiKey = kj.k + '_' + lvl;
   const meta = getKanjiMetadata(kj.k, kj.cat, lvl);
 
+  const onRom = kanaToRomaji(kj.on);
+  const kunRom = kanaToRomaji(kj.kun);
+
   // Update Header Elements
   document.getElementById('kmChar').textContent = kj.k;
   document.getElementById('kmLevel').textContent = lvl;
   document.getElementById('kmCategory').textContent = kj.cat || 'general';
   document.getElementById('kmStrokesBadge').textContent = meta.strokes + (meta.strokes === 1 ? ' stroke' : ' strokes');
   document.getElementById('kmMeaning').textContent = kj.en || '';
+  
   document.getElementById('kmOn').textContent = kj.on || '—';
+  const onRomEl = document.getElementById('kmOnRom');
+  if (onRomEl) onRomEl.textContent = onRom ? `(${onRom})` : '';
+
   document.getElementById('kmKun').textContent = kj.kun || '—';
+  const kunRomEl = document.getElementById('kmKunRom');
+  if (kunRomEl) kunRomEl.textContent = kunRom ? `(${kunRom})` : '';
 
   // Update Radical & Component info
   document.getElementById('kmRadicalText').textContent = meta.rad;
@@ -940,11 +1065,22 @@ function styleAndAnimateKanjiSVG(svgEl){
   const paths = svgEl.querySelectorAll('path');
   const texts = svgEl.querySelectorAll('text');
 
+  // Reset all paths to clear previous animations
+  paths.forEach((path) => {
+    path.style.animation = 'none';
+    path.style.strokeDashoffset = '0';
+    path.style.strokeDasharray = 'none';
+  });
+
+  // Synchronous layout reflow to guarantee browser registers the animation reset
+  void svgEl.getBoundingClientRect();
+
+  // Apply stroke animation with sequential delay
   paths.forEach((path, idx) => {
-    const length = path.getTotalLength ? path.getTotalLength() : 300;
-    path.style.strokeDasharray = length;
-    path.style.strokeDashoffset = length;
-    path.style.animation = `drawKanjiStroke 0.8s ease forwards ${idx * 0.45}s`;
+    const length = path.getTotalLength ? Math.ceil(path.getTotalLength()) : 300;
+    path.style.strokeDasharray = `${length} ${length}`;
+    path.style.strokeDashoffset = `${length}`;
+    path.style.animation = `drawKanjiStroke 0.85s ease forwards ${idx * 0.4}s`;
   });
 
   texts.forEach((text) => {
@@ -966,8 +1102,8 @@ function generateFallbackKanjiSVG(kanjiChar, strokeCount){
 }
 
 function playKanjiStrokeAnimation(){
-  if(!currentKanjiObj) return;
   const box = document.getElementById('kmStrokeBox');
+  if(!box) return;
   const svgEl = box.querySelector('svg');
   if(svgEl && svgEl.querySelectorAll('path').length > 0){
     styleAndAnimateKanjiSVG(svgEl);
@@ -976,7 +1112,7 @@ function playKanjiStrokeAnimation(){
     const textEl = box.querySelector('.fallback-char-anim');
     if(textEl){
       textEl.style.animation = 'none';
-      textEl.offsetHeight; // Reflow trigger
+      void textEl.getBoundingClientRect(); // Reflow trigger
       textEl.style.animation = 'fadeInStroke 0.8s ease forwards';
     }
   }
