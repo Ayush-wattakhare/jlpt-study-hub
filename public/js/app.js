@@ -47,7 +47,8 @@ function saveGuestState() {
     testResults: S.testResults, progress: S.progress,
     weakAreas: S.weakAreas, activityLog: S.activityLog,
     learnedKanji: S.learnedKanji, settings: S.settings,
-    xpHistory: S.xpHistory
+    xpHistory: S.xpHistory,
+    reminders: reminders
   };
   try { localStorage.setItem(LS_KEY, JSON.stringify(snap)); } catch(e) {}
 }
@@ -67,6 +68,7 @@ const api = async (method, path, body) => {
       return { success: true, data: d || {} };
     }
     if (method === 'PATCH' && body) {
+      if (body.reminders !== undefined) reminders = body.reminders;
       Object.keys(body).forEach(k => { if (body[k] !== undefined) S[k] = body[k]; });
       saveGuestState();
       return { success: true };
@@ -202,7 +204,11 @@ async function init(){
     S.weakAreas=d.weakAreas||{}; S.activityLog=d.activityLog||{};
     S.xpHistory=d.xpHistory||[];
     if(d.settings)S.settings=d.settings;
-    reminders=d.reminders||[];
+    const DEFAULT_REMINDERS = [
+      { id: 1, time: '08:00', label: 'Morning vocabulary practice!', enabled: true },
+      { id: 2, time: '21:00', label: 'Evening grammar review!', enabled: true }
+    ];
+    reminders = (d.reminders && d.reminders.length) ? d.reminders : DEFAULT_REMINDERS;
     if(d.learnedKanji) S.learnedKanji=d.learnedKanji;
     else if(S.progress.learnedKanji) S.learnedKanji=S.progress.learnedKanji;
     if(d._username) S.username = d._username; // Set from backup state
@@ -380,7 +386,7 @@ function renderDashboard(){
   // Reminders
   const dr=document.getElementById('dashReminders');
   if(dr){
-    const active=(window.reminders||[]).filter(r=>r.enabled);
+    const active=(reminders||[]).filter(r=>r.enabled);
     dr.innerHTML=active.length?active.map(r=>`<div class="reminder-row"><div class="rem-dot"></div>${r.label}<div class="rem-time">${r.time}</div></div>`).join(''):'<div style="font-size:13px;color:var(--muted)">No active reminders.</div>';
   }
 
@@ -1878,7 +1884,7 @@ function submitPracticeTest(){
   });
   const score=Math.round(correct/qs.length*100);
   const timeTaken=Math.round((Date.now()-startTime)/1000);
-  const result={title:set.title,score,correct,total:qs.length,weakAreas:Object.keys(weak),timestamp:new Date().toISOString()};
+  const result={title:set.title,score,correct,total:qs.length,level:set.level||S.level,weakAreas:Object.keys(weak),timestamp:new Date().toISOString()};
   S.testResults.unshift(result);
   Object.keys(weak).forEach(k=>{S.weakAreas[k]=(S.weakAreas[k]||0)+weak[k];});
   api('PATCH','/api/state',{testResults:S.testResults,weakAreas:S.weakAreas});
