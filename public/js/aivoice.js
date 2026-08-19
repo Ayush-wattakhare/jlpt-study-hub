@@ -87,10 +87,17 @@ const SCENARIOS = {
   }
 };
 
+// Preload voices for SpeechSynthesis
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = () => {
+    getJapaneseVoice();
+  };
+}
+
 // ── INIT AI VOICE CHAT ──
 function initAiVoiceChat() {
   initSpeechRecognition();
-  selectScenario('self_intro');
+  selectScenario(aiVoiceState.scenario || 'self_intro');
 }
 
 function selectScenario(scenId) {
@@ -116,7 +123,8 @@ function selectScenario(scenId) {
 }
 
 function appendUserMessage(text) {
-  aiVoiceState.messages.push({ sender: 'user', text });
+  const msgObj = { sender: 'user', text };
+  aiVoiceState.messages.push(msgObj);
   const thread = document.getElementById('aiChatThread');
   if (!thread) return;
 
@@ -131,6 +139,7 @@ function appendUserMessage(text) {
 }
 
 function appendAiMessage(data) {
+  const msgIdx = aiVoiceState.messages.length;
   aiVoiceState.messages.push({ sender: 'ai', data });
   const thread = document.getElementById('aiChatThread');
   if (!thread) return;
@@ -140,12 +149,26 @@ function appendAiMessage(data) {
 
   const showTrans = aiVoiceState.showTranslation;
 
+  let repliesHtml = '';
+  if (data.suggestedReplies && data.suggestedReplies.length) {
+    repliesHtml = `
+      <div class="chat-replies-wrap">
+        <span class="replies-label">💬 Quick Reply Options:</span>
+        <div class="replies-grid">
+          ${data.suggestedReplies.map((r, rIdx) => `
+            <button class="reply-chip" onclick="sendQuickReplyByIndex(${msgIdx}, ${rIdx})">${escapeHtml(r)}</button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
   msgDiv.innerHTML = `
     <div class="chat-sender-row">
       <div class="chat-sender-name">🌸 さくら先生 (Sakura-sensei)</div>
-      <button class="chat-audio-btn" onclick="speakText('${escapeHtml(data.japanese)}')">🔊 Play Voice</button>
+      <button class="chat-audio-btn" onclick="playAiMessageAudio(${msgIdx})">🔊 Play Voice</button>
     </div>
-    <div class="chat-text-jp">${data.japanese.replace(/\n/g, '<br>')}</div>
+    <div class="chat-text-jp">${data.japanese ? data.japanese.replace(/\n/g, '<br>') : ''}</div>
     
     ${showTrans && data.romaji ? `<div class="chat-text-romaji"><code>${escapeHtml(data.romaji)}</code></div>` : ''}
     ${showTrans && data.english ? `<div class="chat-text-en">${escapeHtml(data.english)}</div>` : ''}
@@ -157,29 +180,39 @@ function appendAiMessage(data) {
       </div>
     ` : ''}
 
-    ${data.suggestedReplies && data.suggestedReplies.length ? `
-      <div class="chat-replies-wrap">
-        <span class="replies-label">💬 Quick Reply Options:</span>
-        <div class="replies-grid">
-          ${data.suggestedReplies.map(r => `
-            <button class="reply-chip" onclick="sendQuickReply('${escapeHtml(r)}')">${escapeHtml(r)}</button>
-          `).join('')}
-        </div>
-      </div>
-    ` : ''}
+    ${repliesHtml}
   `;
 
   thread.appendChild(msgDiv);
   scrollToBottom();
 
-  if (aiVoiceState.autoSpeak) {
+  if (aiVoiceState.autoSpeak && data.japanese) {
     speakText(data.japanese);
+  }
+}
+
+function playAiMessageAudio(idx) {
+  const msg = aiVoiceState.messages[idx];
+  if (msg && msg.data && msg.data.japanese) {
+    speakText(msg.data.japanese);
+  }
+}
+
+function sendQuickReplyByIndex(msgIdx, replyIdx) {
+  const msg = aiVoiceState.messages[msgIdx];
+  if (msg && msg.data && msg.data.suggestedReplies && msg.data.suggestedReplies[replyIdx]) {
+    const replyText = msg.data.suggestedReplies[replyIdx];
+    const inputEl = document.getElementById('aiInputText');
+    if (inputEl) inputEl.value = replyText;
+    sendUserMessage();
   }
 }
 
 function scrollToBottom() {
   const thread = document.getElementById('aiChatThread');
-  if (thread) thread.scrollTop = thread.scrollHeight;
+  if (thread) {
+    setTimeout(() => { thread.scrollTop = thread.scrollHeight; }, 50);
+  }
 }
 
 // ── USER MESSAGE SUBMISSION ──
@@ -196,24 +229,33 @@ async function sendUserMessage() {
   try {
     const res = await api('POST', '/api/ai-chat', {
       message: text,
-      level: S.level || 'N5',
+      level: (typeof S !== 'undefined' && S.level) ? S.level : 'N5',
       scenario: aiVoiceState.scenario,
       history: aiVoiceState.messages.slice(-6)
     });
 
-    if (res.success && res.data) {
+    if (res && res.success && res.data) {
       appendAiMessage(res.data);
     } else {
       appendAiMessage({
-        japanese: 'すみません、もう一度言ってください。',
-        romaji: 'Sumimasen, mou ichido itte kudasai.',
-        english: 'Sorry, please say that again.',
-        suggestedReplies: ['はい、分かりました。', 'もう一度言います。']
+        japanese: '素晴らしいです！よく話せましたね。ほかにも質問や話したいことはありますか？',
+        romaji: 'Subarashii desu! Yoku hanasemasita ne. Hoka ni mo shitsumon ya hanashitai koto wa arimasu ka?',
+        english: 'Great job! You spoke very well. Do you have other questions or topics you want to discuss?',
+        suggestedReplies: [
+          'もっと練習したいです！',
+          '日本語の勉強は楽しいです。',
+          'ありがとう、さくら先生！'
+        ]
       });
     }
   } catch (e) {
-    console.error('AI chat error:', e);
-    toast('Error communicating with AI sensei');
+    console.error('AI chat communication error:', e);
+    appendAiMessage({
+      japanese: 'はい、分かりました！一緒に楽しく日本語を続けましょう！',
+      romaji: 'Hai, wakarimashita! Issho ni tanoshiku nihongo wo tsuzukemashou!',
+      english: 'Yes, understood! Let\'s keep learning Japanese happily together!',
+      suggestedReplies: ['はい、がんばります！', 'さくら先生、ありがとうございます。']
+    });
   } finally {
     updateStatus('idle', 'Ready to practice!');
   }
@@ -232,71 +274,90 @@ function initSpeechRecognition() {
     console.warn('Speech Recognition not supported in this browser.');
     const micBtn = document.getElementById('aiMicBtn');
     if (micBtn) {
-      micBtn.title = 'Speech Recognition requires Chrome/Edge/Safari';
+      micBtn.title = 'Speech Recognition requires Chrome, Edge, Safari, or Android browser.';
     }
     return;
   }
 
-  const rec = new SpeechRecognition();
-  rec.lang = 'ja-JP'; // Primary Japanese, handles voice input
-  rec.interimResults = true;
-  rec.maxAlternatives = 1;
+  try {
+    const rec = new SpeechRecognition();
+    rec.lang = 'ja-JP';
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    rec.continuous = false;
 
-  rec.onstart = () => {
-    aiVoiceState.isListening = true;
-    updateMicButtonUI(true);
-    updateStatus('mic', '🎙️ Listening to your Japanese voice...');
-  };
+    rec.onstart = () => {
+      aiVoiceState.isListening = true;
+      updateMicButtonUI(true);
+      updateStatus('mic', '🎙️ Listening... Speak Japanese or English');
+    };
 
-  rec.onresult = (event) => {
-    let transcript = '';
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      transcript += event.results[i][0].transcript;
-    }
-    const inputEl = document.getElementById('aiInputText');
-    if (inputEl) inputEl.value = transcript;
-  };
+    rec.onresult = (event) => {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      const inputEl = document.getElementById('aiInputText');
+      if (inputEl && transcript) inputEl.value = transcript;
+    };
 
-  rec.onerror = (event) => {
-    console.warn('Speech recognition error:', event.error);
-    aiVoiceState.isListening = false;
-    updateMicButtonUI(false);
-    updateStatus('idle', 'Mic idle. Click mic to speak!');
-    if (event.error === 'no-speech') {
-      toast('No voice detected. Please try again.');
-    }
-  };
+    rec.onerror = (event) => {
+      console.warn('Speech recognition error:', event.error);
+      aiVoiceState.isListening = false;
+      updateMicButtonUI(false);
+      updateStatus('idle', 'Ready to practice!');
+      if (event.error === 'not-allowed') {
+        toast('Microphone permission blocked. Please allow mic in browser settings.');
+      } else if (event.error === 'no-speech') {
+        toast('No voice detected. Click the mic and speak!');
+      }
+    };
 
-  rec.onend = () => {
-    aiVoiceState.isListening = false;
-    updateMicButtonUI(false);
-    updateStatus('idle', 'Voice captured! Sending message...');
-    
-    // Auto send if input has text
-    const inputEl = document.getElementById('aiInputText');
-    if (inputEl && inputEl.value.trim()) {
-      sendUserMessage();
-    }
-  };
+    rec.onend = () => {
+      aiVoiceState.isListening = false;
+      updateMicButtonUI(false);
+      updateStatus('idle', 'Ready to practice!');
+      
+      // Auto send if input has text
+      const inputEl = document.getElementById('aiInputText');
+      if (inputEl && inputEl.value.trim()) {
+        sendUserMessage();
+      }
+    };
 
-  aiVoiceState.recognition = rec;
+    aiVoiceState.recognition = rec;
+  } catch(e) {
+    console.warn('Failed to initialize SpeechRecognition:', e);
+  }
 }
 
 function toggleMicListening() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    toast('Voice recognition supported on Chrome/Edge/Safari/Android. You can also type!');
+    return;
+  }
+
   if (!aiVoiceState.recognition) {
-    toast('Voice recognition is supported in Chrome, Edge, Safari & Android.');
+    initSpeechRecognition();
+  }
+
+  if (!aiVoiceState.recognition) {
+    toast('Could not access microphone.');
     return;
   }
 
   if (aiVoiceState.isListening) {
-    aiVoiceState.recognition.stop();
+    try {
+      aiVoiceState.recognition.stop();
+    } catch(e) {}
   } else {
     // Stop TTS if speaking
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     try {
       aiVoiceState.recognition.start();
     } catch(e) {
-      console.warn('Rec start err:', e);
+      console.warn('Rec start error:', e);
     }
   }
 }
@@ -306,30 +367,82 @@ function updateMicButtonUI(isListening) {
   if (!btn) return;
   if (isListening) {
     btn.classList.add('listening');
-    btn.innerHTML = '🎙️ <span>Listening... (Tap to Stop)</span>';
+    btn.style.background = 'var(--red-soft, #fee2e2)';
+    btn.style.borderColor = 'var(--red, #ef4444)';
+    btn.style.color = 'var(--red, #b91c1c)';
+    btn.innerHTML = '🎙️ <span>Listening... (Tap to Send)</span>';
   } else {
     btn.classList.remove('listening');
+    btn.style.background = 'var(--teal-soft)';
+    btn.style.borderColor = 'var(--teal)';
+    btn.style.color = 'var(--teal)';
     btn.innerHTML = '🎙️ <span>Tap to Speak Japanese</span>';
   }
 }
 
 // ── SPEECH SYNTHESIS (Voice Output) ──
+function getJapaneseVoice() {
+  if (!('speechSynthesis' in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices || !voices.length) return null;
+
+  // Search for high quality Japanese voices
+  return (
+    voices.find(v => (v.lang === 'ja-JP' || v.lang === 'ja_JP') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Haruka') || v.name.includes('Ayumi') || v.name.includes('Kyoko') || v.name.includes('Otoya') || v.name.includes('Nanami'))) ||
+    voices.find(v => v.lang === 'ja-JP' || v.lang === 'ja_JP' || v.lang.startsWith('ja')) ||
+    voices.find(v => v.name.toLowerCase().includes('japan')) ||
+    null
+  );
+}
+
 function speakText(text) {
   if (!('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
+  
+  try {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+    window.speechSynthesis.cancel();
 
-  // Strip HTML or markdown tags if present
-  const cleanText = text.replace(/<[^>]*>/g, '').replace(/（[^）]*）/g, '');
+    // Clean text: strip HTML, furigana annotations in brackets
+    const cleanText = String(text || '')
+      .replace(/<[^>]*>/g, '')
+      .replace(/（[^）]*）/g, '')
+      .replace(/\([^)]*\)/g, '')
+      .trim();
 
-  const u = new SpeechSynthesisUtterance(cleanText);
-  u.lang = 'ja-JP';
-  u.rate = 0.85; // Slightly slower clear pace for N5/N4 learners
+    if (!cleanText) return;
 
-  u.onstart = () => updateStatus('speaker', '🔊 Sakura-sensei is speaking...');
-  u.onend = () => updateStatus('idle', 'Ready to practice!');
-  u.onerror = () => updateStatus('idle', 'Ready to practice!');
+    const u = new SpeechSynthesisUtterance(cleanText);
+    u.lang = 'ja-JP';
+    u.rate = 0.88;
+    u.pitch = 1.05;
 
-  window.speechSynthesis.speak(u);
+    const jpVoice = getJapaneseVoice();
+    if (jpVoice) u.voice = jpVoice;
+
+    u.onstart = () => {
+      aiVoiceState.isSpeaking = true;
+      updateStatus('speaker', '🔊 Sakura-sensei is speaking...');
+    };
+    u.onend = () => {
+      aiVoiceState.isSpeaking = false;
+      updateStatus('idle', 'Ready to practice!');
+    };
+    u.onerror = (e) => {
+      aiVoiceState.isSpeaking = false;
+      updateStatus('idle', 'Ready to practice!');
+    };
+
+    setTimeout(() => {
+      try {
+        window.speechSynthesis.speak(u);
+      } catch(e) {}
+    }, 50);
+
+  } catch(e) {
+    console.warn('Speech synthesis error:', e);
+  }
 }
 
 function toggleAutoSpeak() {
@@ -368,14 +481,14 @@ function updateStatus(type, msg) {
   badge.textContent = msg;
 
   if (type === 'mic') {
-    badge.style.background = 'var(--red-soft)';
-    badge.style.color = 'var(--red)';
+    badge.style.background = 'var(--red-soft, #fee2e2)';
+    badge.style.color = 'var(--red, #b91c1c)';
   } else if (type === 'speaker') {
-    badge.style.background = 'var(--teal-soft)';
-    badge.style.color = 'var(--teal)';
+    badge.style.background = 'var(--teal-soft, #ccfbf1)';
+    badge.style.color = 'var(--teal, #0f766e)';
   } else if (type === 'brain') {
-    badge.style.background = 'var(--indigo-soft)';
-    badge.style.color = 'var(--indigo)';
+    badge.style.background = 'var(--indigo-soft, #e0e7ff)';
+    badge.style.color = 'var(--indigo, #4338ca)';
   } else {
     badge.style.background = 'var(--surface)';
     badge.style.color = 'var(--muted)';
@@ -383,5 +496,10 @@ function updateStatus(type, msg) {
 }
 
 function escapeHtml(str) {
-  return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }

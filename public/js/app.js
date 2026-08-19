@@ -153,8 +153,8 @@ const api = async (method, path, body) => {
     }
   }
 
-  // If Guest, local storage is the source of truth
-  if (isGuest) {
+  // If Guest, local storage is the source of truth for user state persistence routes
+  if (isGuest && (path.startsWith('/api/state') || path === '/api/xp' || path === '/api/study-time')) {
     if (method === 'GET') {
       const d = loadLocalState();
       return { success: true, data: d || {} };
@@ -162,13 +162,13 @@ const api = async (method, path, body) => {
     return { success: true };
   }
 
-  // For Logged-in users, sync to server
+  // For all users (guests & authenticated), sync/fetch with server
   try {
     const r = await fetch(path, {
       method,
       headers: {
         'Content-Type': 'application/json',
-        'x-user-email': currentUser || '',
+        'x-user-email': currentUser || 'guest',
         ...(currentToken ? { 'Authorization': `Bearer ${currentToken}` } : {})
       },
       body: body ? JSON.stringify(body) : undefined
