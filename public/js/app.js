@@ -708,18 +708,145 @@ function renderKanaGrid(type){
     ${g.chars.map(c=>`<div class="kana-card" onclick="openKanaModal('${c.jp}', '${c.r}', '${type}', '${g.group}')" style="cursor:pointer" title="Click to view stroke order & practice"><div class="kana-jp">${c.jp}</div><div class="kana-rom">${c.r}</div></div>`).join('')}
   `).join('');
 }
-function renderVocab(cat='all'){
-  const data=(VOCAB[S.level]||[]).filter(v=>cat==='all'||v.cat===cat);
-  const cats=[...new Set((VOCAB[S.level]||[]).map(v=>v.cat))];
-  document.getElementById('vocabFilterBar').innerHTML=
-    ['all',...cats].map(c=>`<button class="filter-chip${c===cat?' on':''}" onclick="renderVocab('${c}')">${c.charAt(0).toUpperCase()+c.slice(1)}</button>`).join('');
-  
+// State for vocab filtering
+window.vocabState = {
+  cat: 'all',
+  subCat: 'all',
+  search: ''
+};
+
+function onVocabSearch(query) {
+  window.vocabState.search = (query || '').trim().toLowerCase();
+  const clearBtn = document.getElementById('vocabSearchClear');
+  if (clearBtn) clearBtn.style.display = window.vocabState.search ? 'block' : 'none';
+  renderVocabCards();
+}
+
+function clearVocabSearch() {
+  const input = document.getElementById('vocabSearchInput');
+  if (input) input.value = '';
+  window.vocabState.search = '';
+  const clearBtn = document.getElementById('vocabSearchClear');
+  if (clearBtn) clearBtn.style.display = 'none';
+  renderVocabCards();
+}
+
+function setVocabSubCat(sub) {
+  window.vocabState.subCat = sub;
+  document.querySelectorAll('.sub-filter-chip').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sub === sub);
+  });
+  renderVocabCards();
+}
+
+function renderVocab(cat = null) {
+  if (cat !== null) {
+    window.vocabState.cat = cat;
+    window.vocabState.subCat = 'all'; // reset sub-category on main category switch
+  }
+  const currentCat = window.vocabState.cat;
+  const levelVocab = VOCAB[S.level] || VOCAB.N5 || [];
+  const cats = [...new Set(levelVocab.map(v => v.cat))];
+
+  // Render main category chips
+  const filterBar = document.getElementById('vocabFilterBar');
+  if (filterBar) {
+    filterBar.innerHTML = ['all', ...cats].map(c =>
+      `<button class="filter-chip${c === currentCat ? ' on' : ''}" onclick="renderVocab('${c}')">${c.charAt(0).toUpperCase() + c.slice(1)}</button>`
+    ).join('');
+  }
+
+  // Handle Sub-filters & Notices
+  const subFilterBar = document.getElementById('vocabSubFilterBar');
+  const noticeArea = document.getElementById('vocabNoticeArea');
+
+  if (noticeArea) {
+    noticeArea.innerHTML = '';
+  }
+
+  if (currentCat === 'verbs') {
+    if (subFilterBar) {
+      subFilterBar.style.display = 'flex';
+      subFilterBar.innerHTML = `
+        <button class="sub-filter-chip${window.vocabState.subCat === 'all' ? ' active' : ''}" data-sub="all" onclick="setVocabSubCat('all')">All Verbs (85)</button>
+        <button class="sub-filter-chip${window.vocabState.subCat === 'core' ? ' active' : ''}" data-sub="core" onclick="setVocabSubCat('core')">⭐ Core 20 Must-Know</button>
+        <button class="sub-filter-chip${window.vocabState.subCat === 'g1' ? ' active' : ''}" data-sub="g1" onclick="setVocabSubCat('g1')">🟢 Group 1: う-verbs (57)</button>
+        <button class="sub-filter-chip${window.vocabState.subCat === 'g2' ? ' active' : ''}" data-sub="g2" onclick="setVocabSubCat('g2')">🔵 Group 2: る-verbs (18)</button>
+        <button class="sub-filter-chip${window.vocabState.subCat === 'g3' ? ' active' : ''}" data-sub="g3" onclick="setVocabSubCat('g3')">🔴 Irregular Verbs (10)</button>
+      `;
+    }
+  } else if (currentCat === 'adjectives') {
+    if (subFilterBar) {
+      subFilterBar.style.display = 'flex';
+      subFilterBar.innerHTML = `
+        <button class="sub-filter-chip${window.vocabState.subCat === 'all' ? ' active' : ''}" data-sub="all" onclick="setVocabSubCat('all')">All Adjectives (66)</button>
+        <button class="sub-filter-chip${window.vocabState.subCat === 'i' ? ' active' : ''}" data-sub="i" onclick="setVocabSubCat('i')">🟢 い-Adjectives (50)</button>
+        <button class="sub-filter-chip${window.vocabState.subCat === 'na' ? ' active' : ''}" data-sub="na" onclick="setVocabSubCat('na')">🔵 な-Adjectives (16)</button>
+      `;
+    }
+  } else {
+    if (subFilterBar) subFilterBar.style.display = 'none';
+  }
+
+  renderVocabCards();
+}
+
+function renderVocabCards() {
+  const levelVocab = VOCAB[S.level] || VOCAB.N5 || [];
+  const currentCat = window.vocabState.cat;
+  const currentSub = window.vocabState.subCat;
+  const query = window.vocabState.search;
+
+  let filtered = levelVocab.filter(v => {
+    if (currentCat !== 'all' && v.cat !== currentCat) return false;
+
+    if (currentCat === 'verbs') {
+      if (currentSub === 'core' && !v.core) return false;
+      if (currentSub === 'g1' && v.group !== 1) return false;
+      if (currentSub === 'g2' && v.group !== 2) return false;
+      if (currentSub === 'g3' && v.group !== 3) return false;
+    } else if (currentCat === 'adjectives') {
+      if (currentSub === 'i' && v.type !== 'i') return false;
+      if (currentSub === 'na' && v.type !== 'na') return false;
+    }
+
+    if (query) {
+      const matchJp = v.jp && v.jp.toLowerCase().includes(query);
+      const matchR = v.r && v.r.toLowerCase().includes(query);
+      const matchEn = v.en && v.en.toLowerCase().includes(query);
+      const matchSub = v.sub && v.sub.toLowerCase().includes(query);
+      if (!matchJp && !matchR && !matchEn && !matchSub) return false;
+    }
+
+    return true;
+  });
+
+  // Update count badge
+  const countBadge = document.getElementById('vocabCountBadge');
+  if (countBadge) {
+    countBadge.textContent = `Showing ${filtered.length} word${filtered.length === 1 ? '' : 's'}`;
+  }
+
+  const grid = document.getElementById('vocabGrid');
+  if (!grid) return;
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div style="grid-column: 1 / -1; text-align:center; padding: 40px; color: var(--muted);">
+      <div style="font-size:32px;margin-bottom:8px">🔍</div>
+      <div style="font-size:16px;font-weight:600">No vocabulary found</div>
+      <div style="font-size:13px;margin-top:4px">Try changing your search query or filter</div>
+    </div>`;
+    return;
+  }
+
   let html = '';
   let lastSub = null;
-  
-  data.forEach((v) => {
-    if (v.sub && v.sub !== lastSub) {
-      html += `<div class="vocab-section-header" style="grid-column: 1 / -1; margin-top: 20px; font-weight: 700; color: var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 5px; margin-bottom: 10px;">${v.sub}</div>`;
+
+  filtered.forEach((v) => {
+    if (v.sub && v.sub !== lastSub && currentSub === 'all' && !query) {
+      html += `<div class="vocab-section-header" style="grid-column: 1 / -1; margin-top: 24px; font-weight: 700; color: var(--accent, #e65100); border-bottom: 2px solid var(--accent, #e65100); padding-bottom: 6px; margin-bottom: 12px; font-size:16px;">
+        ${v.sub}
+      </div>`;
       lastSub = v.sub;
     } else if (!v.sub && lastSub !== null) {
       lastSub = null;
@@ -727,20 +854,41 @@ function renderVocab(cat='all'){
 
     const key = `voc-${v.jp}_${S.level}`;
     const learned = S.progress[key];
+
     html += `
-    <div class="vocab-card${learned?' learned':''}" onclick="this.classList.toggle('expanded')" style="position:relative;">
-      <div style="position:absolute;top:10px;right:10px;z-index:2">
-        <button class="btn-secondary" style="padding:4px 8px;font-size:11px" onclick="event.stopPropagation(); toggleVocab('${key}', this.parentElement.parentElement, '${v.en}')">${learned?'Unmark':'Learned ✓'}</button>
+    <div class="vocab-card${learned ? ' learned' : ''}" onclick="this.classList.toggle('expanded')">
+      <div class="vc-card-top">
+        <div class="vc-badges">
+          ${v.core ? '<span class="vocab-badge-core">⭐ Core N5</span>' : ''}
+          <span class="vocab-badge-sub">${v.sub || v.cat}</span>
+        </div>
+        <button class="btn-secondary" style="padding:4px 8px;font-size:11px" onclick="event.stopPropagation(); toggleVocab('${key}', this.closest('.vocab-card'), '${v.en}')">
+          ${learned ? 'Unmark' : 'Learned ✓'}
+        </button>
       </div>
-      <div class="vc-jp">${v.jp}</div>
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between">
+        <div class="vc-jp">
+          ${v.jp}
+          <button class="vc-audio-btn" onclick="event.stopPropagation(); playJapaneseAudio('${v.jp}')" title="Listen pronunciation">🔊</button>
+        </div>
+      </div>
       <div class="vc-read">${v.r}</div>
       <div class="vc-en">${v.en}</div>
-      <span class="vc-cat">${v.cat}</span>
-      <div class="vc-example"><div style="font-family:'Noto Sans JP',sans-serif">${v.ex}</div><div style="color:var(--teal);margin-top:3px">${v.exEn}</div></div>
+
+      ${v.note ? `<div class="vc-note-box">💡 ${v.note}</div>` : ''}
+
+      <div class="vc-example" style="margin-top:10px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;">
+          <div style="font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--ink)">${v.ex}</div>
+          <button class="vc-audio-btn" onclick="event.stopPropagation(); playJapaneseAudio('${v.ex}')" title="Listen example">🔊</button>
+        </div>
+        <div style="color:var(--teal);margin-top:3px;font-size:12px;">${v.exEn}</div>
+      </div>
     </div>`;
   });
-  
-  document.getElementById('vocabGrid').innerHTML = html;
+
+  grid.innerHTML = html;
 }
 async function toggleVocab(key, el, name) {
   S.progress[key] = !S.progress[key];
@@ -3227,3 +3375,204 @@ function renderResource(){
 
 // ── START ──
 init();
+
+
+// ── Master Conjugation Explorer & Drill ──
+window.conjExplorerState = {
+  filter: 'verbs_all',
+  selectedJp: '食べる',
+  drillMode: false
+};
+
+function initConjugationExplorer() {
+  const filterSelect = document.getElementById('conjFilterSelect');
+  if (!filterSelect) return;
+
+  onConjFilterChange(window.conjExplorerState.filter);
+}
+
+function onConjFilterChange(filterVal) {
+  window.conjExplorerState.filter = filterVal;
+  const wordSelect = document.getElementById('conjWordSelect');
+  if (!wordSelect) return;
+
+  const n5List = VOCAB.N5 || [];
+  let words = [];
+
+  if (filterVal === 'all') {
+    words = n5List.filter(w => w.conj);
+  } else if (filterVal === 'verbs_all') {
+    words = n5List.filter(w => w.cat === 'verbs');
+  } else if (filterVal === 'verbs_core') {
+    words = n5List.filter(w => w.cat === 'verbs' && w.core);
+  } else if (filterVal === 'verbs_g1') {
+    words = n5List.filter(w => w.cat === 'verbs' && w.group === 1);
+  } else if (filterVal === 'verbs_g2') {
+    words = n5List.filter(w => w.cat === 'verbs' && w.group === 2);
+  } else if (filterVal === 'verbs_g3') {
+    words = n5List.filter(w => w.cat === 'verbs' && w.group === 3);
+  } else if (filterVal === 'adj_all') {
+    words = n5List.filter(w => w.cat === 'adjectives');
+  } else if (filterVal === 'adj_i') {
+    words = n5List.filter(w => w.cat === 'adjectives' && w.type === 'i');
+  } else if (filterVal === 'adj_na') {
+    words = n5List.filter(w => w.cat === 'adjectives' && w.type === 'na');
+  }
+
+  wordSelect.innerHTML = words.map(w =>
+    `<option value="${w.jp}">${w.jp} (${w.r}) — ${w.en}</option>`
+  ).join('');
+
+  if (words.length > 0) {
+    const exists = words.find(w => w.jp === window.conjExplorerState.selectedJp);
+    const targetWord = exists ? exists.jp : words[0].jp;
+    wordSelect.value = targetWord;
+    window.conjExplorerState.selectedJp = targetWord;
+    renderConjWordDetail(targetWord);
+  } else {
+    document.getElementById('conjWordDetailArea').innerHTML = '<div style="color:var(--muted)">No words match this filter.</div>';
+  }
+}
+
+function onConjWordSelect(wordJp) {
+  window.conjExplorerState.selectedJp = wordJp;
+  renderConjWordDetail(wordJp);
+}
+
+function toggleConjDrillMode() {
+  window.conjExplorerState.drillMode = !window.conjExplorerState.drillMode;
+  const btn = document.getElementById('conjDrillBtnText');
+  if (btn) btn.textContent = window.conjExplorerState.drillMode ? 'Active Recall Drill: ON (Answers Hidden)' : 'Active Recall Drill: OFF';
+  renderConjWordDetail(window.conjExplorerState.selectedJp);
+}
+
+function renderConjWordDetail(wordJp) {
+  const area = document.getElementById('conjWordDetailArea');
+  if (!area) return;
+
+  const n5List = VOCAB.N5 || [];
+  const word = n5List.find(w => w.jp === wordJp);
+  if (!word || !word.conj) {
+    area.innerHTML = '<div style="color:var(--muted)">Select a word above to see its complete conjugation matrix.</div>';
+    return;
+  }
+
+  const isDrill = window.conjExplorerState.drillMode;
+
+  function makeDrillCell(val) {
+    if (!isDrill) {
+      return `<strong>${val}</strong> <button class="pnd-mini-audio" onclick="playJapaneseAudio('${val}')">🔊</button>`;
+    }
+    return `
+      <div class="conj-drill-cell hidden" onclick="this.classList.remove('hidden')" title="Click to reveal">
+        <span class="conj-val-text">${val}</span>
+        <button class="pnd-mini-audio" onclick="event.stopPropagation(); playJapaneseAudio('${val}')" style="margin-left:6px">🔊</button>
+      </div>`;
+  }
+
+  let tableHtml = '';
+  if (word.cat === 'verbs') {
+    tableHtml = `
+      <div style="overflow-x:auto">
+        <table class="conj-matrix-table">
+          <thead>
+            <tr>
+              <th>Form / Mood</th>
+              <th>Polite Form (丁寧形)</th>
+              <th>Plain Form (普通形)</th>
+              <th>Example Sentence</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Present / Future (+)</strong><br><small style="color:var(--muted)">Affirmative habit / future</small></td>
+              <td>${makeDrillCell(word.conj.politePres)}</td>
+              <td>${makeDrillCell(word.jp)}</td>
+              <td rowspan="2" style="vertical-align:middle;background:var(--surface, rgba(0,0,0,0.01))">
+                <strong style="font-family:'Noto Sans JP',sans-serif">${word.ex}</strong>
+                <button class="pnd-mini-audio" onclick="playJapaneseAudio('${word.ex}')">🔊</button>
+                <div style="font-size:12px;color:var(--teal);margin-top:4px">${word.exEn}</div>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Present / Future (-)</strong><br><small style="color:var(--muted)">Negative habit / future</small></td>
+              <td>${makeDrillCell(word.conj.politeNeg)}</td>
+              <td>${makeDrillCell(word.conj.plainNeg)}</td>
+            </tr>
+            <tr>
+              <td><strong>Past Affirmative (+)</strong><br><small style="color:var(--muted)">Completed action</small></td>
+              <td>${makeDrillCell(word.conj.politePast)}</td>
+              <td>${makeDrillCell(word.conj.plainPast)}</td>
+              <td rowspan="3" style="vertical-align:middle;background:var(--surface, rgba(0,0,0,0.01))">
+                <div style="font-size:12px;color:var(--muted);line-height:1.6">
+                  <strong>Classification:</strong> ${word.sub}<br>
+                  ${word.core ? '⭐ <span style="color:var(--accent);font-weight:600">Core N5 Priority Verb</span><br>' : ''}
+                  <strong>Dictionary Form:</strong> ${word.jp} (${word.r})<br>
+                  <strong>English:</strong> ${word.en}
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Past Negative (-)</strong><br><small style="color:var(--muted)">Did not do</small></td>
+              <td>${makeDrillCell(word.conj.politePastNeg)}</td>
+              <td>${makeDrillCell(word.conj.plainNeg + 'かった')}</td>
+            </tr>
+            <tr>
+              <td><strong>て-Form (Connecting / Request)</strong><br><small style="color:var(--muted)">〜てください / 〜ている</small></td>
+              <td colspan="2">${makeDrillCell(word.conj.te)} <small style="color:var(--muted)">(e.g. ${word.conj.te}ください)</small></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (word.cat === 'adjectives') {
+    tableHtml = `
+      <div style="overflow-x:auto">
+        <table class="conj-matrix-table">
+          <thead>
+            <tr>
+              <th>Tense / Form</th>
+              <th>Affirmative (+)</th>
+              <th>Negative (-)</th>
+              <th>Example Usage</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Present / Habitual</strong></td>
+              <td>${makeDrillCell(word.conj.presAff)}</td>
+              <td>${makeDrillCell(word.conj.presNeg)}</td>
+              <td rowspan="2" style="vertical-align:middle;background:var(--surface, rgba(0,0,0,0.01))">
+                <strong style="font-family:'Noto Sans JP',sans-serif">${word.ex}</strong>
+                <button class="pnd-mini-audio" onclick="playJapaneseAudio('${word.ex}')">🔊</button>
+                <div style="font-size:12px;color:var(--teal);margin-top:4px">${word.exEn}</div>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Past Tense</strong></td>
+              <td>${makeDrillCell(word.conj.pastAff)}</td>
+              <td>${makeDrillCell(word.conj.pastNeg)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  area.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:28px;font-family:'Noto Sans JP',sans-serif;font-weight:700;color:var(--ink)">${word.jp}</span>
+        <span style="font-size:16px;color:var(--muted)">(${word.r})</span>
+        <button class="pnd-audio-btn" onclick="playJapaneseAudio('${word.jp}')" title="Listen">🔊</button>
+        <span style="font-size:16px;font-weight:600;color:var(--teal);margin-left:8px">${word.en}</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        ${word.core ? '<span class="vocab-badge-core">⭐ Top 20 Must-Know First</span>' : ''}
+        <span class="vocab-badge-sub">${word.sub || word.cat}</span>
+      </div>
+    </div>
+    ${word.note ? `<div class="vc-note-box" style="margin-bottom:12px;">💡 ${word.note}</div>` : ''}
+    ${tableHtml}
+  `;
+}

@@ -9,6 +9,154 @@ let aiVoiceState = {
   messages: []
 };
 
+// ── GEMINI API KEY MANAGEMENT ──
+function getGeminiApiKey() {
+  try {
+    return localStorage.getItem('jlpt_gemini_api_key') || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function setGeminiApiKey(key) {
+  try {
+    if (key && key.trim()) {
+      localStorage.setItem('jlpt_gemini_api_key', key.trim());
+    } else {
+      localStorage.removeItem('jlpt_gemini_api_key');
+    }
+  } catch (e) {}
+  updateAiKeyStatusUI();
+}
+
+function openAiKeyModal() {
+  const modal = document.getElementById('aiKeyModal');
+  const input = document.getElementById('geminiApiKeyInput');
+  const clearBtn = document.getElementById('clearKeyBtn');
+  const testRes = document.getElementById('aiKeyTestResult');
+  if (testRes) testRes.innerHTML = '';
+  if (modal) {
+    modal.style.display = 'flex';
+    const currentKey = getGeminiApiKey();
+    if (input) input.value = currentKey;
+    if (clearBtn) clearBtn.style.display = currentKey ? 'inline-block' : 'none';
+  }
+}
+
+function closeAiKeyModal() {
+  const modal = document.getElementById('aiKeyModal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function saveAiKeyFromModal() {
+  const input = document.getElementById('geminiApiKeyInput');
+  const testRes = document.getElementById('aiKeyTestResult');
+  if (!input) return;
+  const key = input.value.trim();
+  if (!key) {
+    if (testRes) testRes.innerHTML = '<span style="color:var(--red,#e53935)">Please enter a valid Gemini API key.</span>';
+    return;
+  }
+
+  setGeminiApiKey(key);
+  try {
+    await fetch('/api/ai-chat/save-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: key })
+    });
+  } catch (e) {}
+
+  if (testRes) testRes.innerHTML = '<span style="color:var(--teal,#00897b);font-weight:600">✅ API Key saved and connected!</span>';
+  toast('Gemini AI Connected! ✨');
+  setTimeout(closeAiKeyModal, 800);
+}
+
+function clearAiKey() {
+  setGeminiApiKey('');
+  const input = document.getElementById('geminiApiKeyInput');
+  if (input) input.value = '';
+  const clearBtn = document.getElementById('clearKeyBtn');
+  if (clearBtn) clearBtn.style.display = 'none';
+  const testRes = document.getElementById('aiKeyTestResult');
+  if (testRes) testRes.innerHTML = '<span style="color:var(--muted)">Disconnected. Reverted to offline tutor mode.</span>';
+  toast('AI Key removed.');
+  updateAiKeyStatusUI();
+}
+
+async function testAiKey() {
+  const input = document.getElementById('geminiApiKeyInput');
+  const testRes = document.getElementById('aiKeyTestResult');
+  if (!input || !testRes) return;
+  const key = input.value.trim();
+  if (!key) {
+    testRes.innerHTML = '<span style="color:var(--red,#e53935)">Please enter an API key to test.</span>';
+    return;
+  }
+
+  testRes.innerHTML = '<span style="color:var(--muted)">Testing connection to Gemini API...</span>';
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: 'Respond with: "OK"' }] }]
+      })
+    });
+    if (res.ok) {
+      testRes.innerHTML = '<span style="color:var(--teal,#00897b);font-weight:600">✅ Connection successful! Gemini is ready.</span>';
+    } else {
+      const err = await res.json();
+      testRes.innerHTML = `<span style="color:var(--red,#e53935)">⚠️ Test failed (${res.status}): ${escapeHtml(err.error?.message || 'Invalid API key')}</span>`;
+    }
+  } catch (e) {
+    testRes.innerHTML = `<span style="color:var(--red,#e53935)">Connection error: ${escapeHtml(e.message)}</span>`;
+  }
+}
+
+async function updateAiKeyStatusUI() {
+  const dot = document.getElementById('aiKeyDot');
+  const text = document.getElementById('aiKeyStatusText');
+  const btn = document.getElementById('aiKeyStatusBtn');
+
+  const localKey = getGeminiApiKey();
+
+  let serverHasKey = false;
+  if (!localKey) {
+    try {
+      const r = await fetch('/api/ai-chat/status').then(res => res.json());
+      serverHasKey = !!r.hasServerKey;
+    } catch (e) {}
+  }
+
+  const isConnected = !!localKey || serverHasKey;
+
+  if (dot) {
+    dot.style.background = isConnected ? 'var(--teal, #00897b)' : '#9e9e9e';
+    dot.style.boxShadow = isConnected ? '0 0 6px var(--teal, #00897b)' : 'none';
+  }
+  if (text) {
+    text.textContent = isConnected ? '✨ Gemini AI Live' : '🔑 Connect AI Key';
+  }
+  if (btn) {
+    if (isConnected) {
+      btn.classList.add('on');
+      btn.title = 'Gemini AI is connected and active. Click to view or change key.';
+    } else {
+      btn.classList.remove('on');
+      btn.title = 'Connect free Gemini API Key for unrestricted conversations on any topic.';
+    }
+  }
+}
+
+function resetAiChat() {
+  selectScenario(aiVoiceState.scenario || 'free_chat');
+  toast('Conversation reset 🔄');
+}
+
+
+
 const SCENARIOS = {
   self_intro: {
     id: 'self_intro',
@@ -75,13 +223,13 @@ const SCENARIOS = {
     title: '☕ フリートーク (Free Conversation)',
     desc: 'Chat freely about anything with your AI Japanese sensei.',
     initial: {
-      japanese: 'こんにちは！今日はどんな一日（いちにち）でしたか？何でも話してくださいね！',
-      romaji: 'Konnichiwa! Kyou wa donna ichinichi deshita ka? Nandemo hanashite kudasai ne!',
-      english: 'Hello! How was your day today? Feel free to talk about anything!',
+      japanese: 'こんにちは！今日（きょう）はどんな一日（いちにち）でしたか？何（なに）でも自由（じゆう）に話（はな）してくださいね！',
+      romaji: 'Konnichiwa! Kyou wa donna ichinichi deshita ka? Nandemo jiyuu ni hanashite kudasai ne!',
+      english: 'Hello! How was your day today? Feel free to talk about anything on your mind!',
       suggestedReplies: [
-        '今日はとても楽しかったです！',
-        '日本語の勉強をがんばっています。',
-        '日本へ旅行に行きたいです。'
+        '今日はとてもいい日でした！',
+        '今日は少し大変でした。',
+        'さくら先生、質問があります！'
       ]
     }
   }
@@ -227,11 +375,13 @@ async function sendUserMessage() {
   updateStatus('brain', 'Thinking & Generating AI response...');
 
   try {
+    const clientKey = getGeminiApiKey();
     const res = await api('POST', '/api/ai-chat', {
       message: text,
       level: (typeof S !== 'undefined' && S.level) ? S.level : 'N5',
       scenario: aiVoiceState.scenario,
-      history: aiVoiceState.messages.slice(-6)
+      history: aiVoiceState.messages.slice(-8),
+      apiKey: clientKey || undefined
     });
 
     if (res && res.success && res.data) {

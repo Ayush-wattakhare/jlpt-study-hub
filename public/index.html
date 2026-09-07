@@ -745,6 +745,16 @@
   <!-- Vocab -->
   <div class="learn-section" id="ls-vocab">
     <div class="filter-bar" id="vocabFilterBar"></div>
+    <div id="vocabSubFilterBar" class="vocab-sub-filter-bar" style="display:none"></div>
+    <div id="vocabNoticeArea"></div>
+    <div class="vocab-toolbar">
+      <div class="vocab-search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="vocabSearchInput" placeholder="Search by Kanji, Hiragana, English meaning..." oninput="onVocabSearch(this.value)">
+        <button id="vocabSearchClear" class="search-clear-btn" onclick="clearVocabSearch()" style="display:none">✕</button>
+      </div>
+      <div id="vocabCountBadge" class="vocab-count-badge"></div>
+    </div>
     <div class="vocab-grid" id="vocabGrid"></div>
   </div>
   <!-- Grammar -->
@@ -1378,7 +1388,74 @@
             </tbody>
           </table>
         </div>
+      
+      <!-- 5. Complete N5 Verb & Adjective Conjugation Master Explorer & Drill -->
+      <div class="pnd-card" id="conjugationMasterSection" style="margin-top:28px; border:2px solid var(--accent, #e65100);">
+        <div class="pnd-card-header" style="flex-wrap:wrap;gap:8px;">
+          <div>
+            <h3 class="pnd-card-title" style="color:var(--accent, #e65100);display:flex;align-items:center;gap:8px;">
+              ⚡ 5. Complete N5 Verb &amp; Adjective Conjugation Master Explorer &amp; Active-Recall Drill
+            </h3>
+            <p style="font-size:13px;color:var(--muted);margin-top:4px;">
+              Master all 85 verbs and 66 adjectives! For N5, active conjugation ability is much more important than just memorizing dictionary forms.
+            </p>
+          </div>
+          <span class="pnd-badge gold">Interactive Trainer</span>
+        </div>
+
+        <!-- Target Metrics Overview -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:12px;margin:16px 0;">
+          <div style="background:var(--surface, rgba(0,0,0,0.02));padding:12px 14px;border-radius:8px;border:1px solid var(--border2)">
+            <div style="font-size:11px;color:var(--muted);font-weight:600">ALL 85 N5 VERBS</div>
+            <div style="font-size:18px;font-weight:700;color:var(--ink)">57 Godan • 18 Ichidan • 10 Irreg</div>
+            <div style="font-size:11.5px;color:var(--teal);margin-top:2px">⭐ 20 Core Must-Know First</div>
+          </div>
+          <div style="background:var(--surface, rgba(0,0,0,0.02));padding:12px 14px;border-radius:8px;border:1px solid var(--border2)">
+            <div style="font-size:11px;color:var(--muted);font-weight:600">ALL 66 N5 ADJECTIVES</div>
+            <div style="font-size:18px;font-weight:700;color:var(--ink)">50 い-Adj • 16 な-Adj</div>
+            <div style="font-size:11.5px;color:var(--accent);margin-top:2px">⚠️ 易しい (easy) vs 優しい (kind)</div>
+          </div>
+          <div style="background:var(--surface, rgba(0,0,0,0.02));padding:12px 14px;border-radius:8px;border:1px solid var(--border2)">
+            <div style="font-size:11px;color:var(--muted);font-weight:600">CORE CONJUGATIONS</div>
+            <div style="font-size:18px;font-weight:700;color:var(--indigo)">4 Polite + て + Plain</div>
+            <div style="font-size:11.5px;color:var(--muted);margin-top:2px">〜ます、〜ません、〜ました、〜ませんでした</div>
+          </div>
+        </div>
+
+        <!-- Explorer Controls -->
+        <div class="conj-explorer-controls">
+          <div>
+            <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Category Filter:</label>
+            <select id="conjFilterSelect" class="conj-filter-select" onchange="onConjFilterChange(this.value)">
+              <option value="all">🌟 All Words (151)</option>
+              <option value="verbs_all" selected>🟢 All 85 Verbs</option>
+              <option value="verbs_core">⭐ Core 20 Must-Know Verbs</option>
+              <option value="verbs_g1">五段 Group 1 — う-verbs (57)</option>
+              <option value="verbs_g2">一段 Group 2 — る-verbs (18)</option>
+              <option value="verbs_g3">🔴 Irregular Verbs (10)</option>
+              <option value="adj_all">🔵 All 66 Adjectives</option>
+              <option value="adj_i">🟢 い-Adjectives (50)</option>
+              <option value="adj_na">🔵 な-Adjectives (16)</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:200px">
+            <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Select Word to Conjugate:</label>
+            <select id="conjWordSelect" class="conj-word-select" style="width:100%" onchange="onConjWordSelect(this.value)">
+              <!-- Options populated dynamically -->
+            </select>
+          </div>
+          <div style="align-self:flex-end">
+            <button id="conjDrillToggleBtn" class="btn-secondary" style="padding:9px 14px;font-size:13px;display:flex;align-items:center;gap:6px;" onclick="toggleConjDrillMode()">
+              <span>🎯</span> <span id="conjDrillBtnText">Active Recall Drill: OFF</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Word Detail Display -->
+        <div id="conjWordDetailArea" style="margin-top:16px;"></div>
       </div>
+
+    </div>
     </div>
   </div>
   <!-- Kanji -->
@@ -1613,6 +1690,11 @@
       <p style="color:var(--muted);font-size:13px;margin-top:2px">Practice conversational Japanese with Sakura-sensei using voice input & native audio responses.</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="filter-chip" id="aiKeyStatusBtn" onclick="openAiKeyModal()" style="display:flex;align-items:center;gap:6px;" title="Connect Gemini API Key for unrestricted conversations">
+        <span id="aiKeyDot" style="width:8px;height:8px;border-radius:50%;background:#9e9e9e;display:inline-block;"></span>
+        <span id="aiKeyStatusText">🔑 Connect AI Key</span>
+      </button>
+      <button class="filter-chip" onclick="resetAiChat()" title="Start fresh conversation">🔄 Reset Chat</button>
       <button class="filter-chip on" id="autoSpeakToggle" onclick="toggleAutoSpeak()">🔊 Voice On</button>
       <button class="filter-chip on" id="transToggle" onclick="toggleTranslationView()">🌐 English &amp; Romaji On</button>
     </div>
@@ -1718,5 +1800,41 @@
   window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
 </script>
 <script defer src="/_vercel/speed-insights/script.js"></script>
+
+<!-- AI Gemini API Key Modal -->
+<div id="aiKeyModal" class="modal-backdrop" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;" onclick="if(event.target===this)closeAiKeyModal()">
+  <div class="modal-card" style="max-width:480px;width:90%;margin:auto;background:var(--card, #fff);border:1px solid var(--border, #e0e0e0);border-radius:12px;padding:24px;box-shadow:0 12px 36px rgba(0,0,0,0.18);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;font-size:18px;display:flex;align-items:center;gap:8px;color:var(--ink, #1a1a1a)">
+        <span>✨</span> Connect Free Gemini AI
+      </h3>
+      <button onclick="closeAiKeyModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted, #666);line-height:1">&times;</button>
+    </div>
+
+    <p style="font-size:13.5px;color:var(--muted, #555);line-height:1.6;margin-bottom:16px;">
+      Connect your Google Gemini API key to enable <strong>unrestricted Free Conversation</strong>. Sakura-sensei will understand any topic (good or bad days, feelings, hobbies, questions) and gently correct your mistakes.
+    </p>
+
+    <div style="background:var(--surface, #f8f9fa);border-left:4px solid var(--teal, #00897b);padding:12px 14px;border-radius:6px;font-size:12.5px;color:var(--ink, #222);margin-bottom:16px;line-height:1.5;">
+      <strong>🎁 100% Free:</strong> Google AI Studio provides free API keys with no credit card required.<br>
+      <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style="color:var(--accent, #e65100);font-weight:600;text-decoration:underline;">
+        Get your Free Gemini API Key here &rarr;
+      </a>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:12px;font-weight:700;color:var(--muted, #666);text-transform:uppercase;margin-bottom:6px;">Gemini API Key</label>
+      <input type="password" id="geminiApiKeyInput" placeholder="Paste key: AIzaSy..." style="width:100%;padding:10px 14px;border:1px solid var(--border, #ccc);border-radius:8px;font-family:monospace;font-size:13.5px;background:var(--bg, #fff);color:var(--ink, #1a1a1a);box-sizing:border-box;">
+      <div id="aiKeyTestResult" style="margin-top:8px;font-size:12.5px;min-height:18px;"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;">
+      <button class="btn-secondary" onclick="clearAiKey()" id="clearKeyBtn" style="padding:8px 14px;font-size:13px;display:none;">Disconnect</button>
+      <button class="btn-secondary" onclick="testAiKey()" id="testKeyBtn" style="padding:8px 14px;font-size:13px;">Test Key</button>
+      <button class="btn-primary" onclick="saveAiKeyFromModal()" style="padding:8px 18px;font-size:13px;background:var(--teal, #00897b);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Save &amp; Connect</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
