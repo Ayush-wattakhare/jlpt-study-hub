@@ -17,7 +17,7 @@
 <meta property="og:image" content="https://jlpt-study-hub.vercel.app/img/og-image.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/style.css?v=4">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#fafaf8">
 <link rel="apple-touch-icon" href="/img/icon-192.jpg">
@@ -230,25 +230,6 @@
       <div class="today-day" id="todayDayNum">1</div>
       <div class="today-phase" id="todayPhase">Vocabulary</div>
       <div class="today-task" id="todayTask">Numbers &amp; counters</div>
-    </div>
-  </div>
-
-  <!-- ⚡ 5-Minute Energetic Motivational Proverb Banner -->
-  <div class="dash-quote-card" id="dashQuoteCard">
-    <div class="dash-quote-header">
-      <div class="dash-quote-badge">
-        <span class="pulse-dot"></span>
-        <span id="dashQuoteTheme">⚡ 5-MIN ENERGY BOOST</span>
-      </div>
-      <div class="dash-quote-actions">
-        <span class="dash-quote-timer">Next quote in: <strong id="dashQuoteCountdown">5:00</strong></span>
-        <button class="dash-quote-refresh-btn" onclick="refreshMotivationalQuote(true)" title="Get a new motivational quote now">
-          🔄 New Energy Quote
-        </button>
-      </div>
-    </div>
-    <div class="dash-quote-body" id="dashQuoteBody">
-      <!-- Populated dynamically -->
     </div>
   </div>
 
@@ -1814,7 +1795,7 @@
 <script src="/js/listening.js"></script>
 <script src="/js/resource.js"></script>
 <script src="/js/aivoice.js"></script>
-<script src="/js/app.js"></script>
+<script src="/js/app.js?v=4"></script>
 <script>
   if('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js');
