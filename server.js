@@ -9,6 +9,9 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'jlpt-super-secret-key';
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+  console.warn('⚠️ WARNING: JWT_SECRET environment variable is not set. Using default fallback key.');
+}
 
 // ── Supabase Setup ──
 const isPlaceholder = !process.env.SUPABASE_URL || process.env.SUPABASE_URL.includes('your-project') || process.env.SUPABASE_URL.includes('placeholder');
@@ -39,6 +42,14 @@ const defaultState = {
   nextReminderId: 3,
 };
 
+function sanitizeState(state) {
+  if (!state || typeof state !== 'object') return JSON.parse(JSON.stringify(defaultState));
+  const clean = { ...state };
+  delete clean._password;
+  delete clean.password;
+  return clean;
+}
+
 // ── Database Layer ──
 async function dbGet(id) {
   if (supabase) {
@@ -50,9 +61,10 @@ async function dbGet(id) {
         }
       }
       if (data) {
-        // Fallback: If password/username columns are missing in DB but exist in JSON state
+        // Fallback: If password/username columns are missing in DB but exist in legacy JSON state
         if (!data.password && data.state && data.state._password) data.password = data.state._password;
         if (!data.username && data.state && data.state._username) data.username = data.state._username;
+        if (data.state) data.state = sanitizeState(data.state);
         return data;
       }
     } catch (e) { console.warn('Supabase fetch exception:', e.message); }
@@ -61,13 +73,13 @@ async function dbGet(id) {
 }
 
 async function dbSave(id, data) {
-  const saveObj = { email: id, ...data };
-  
-  // Extra layer: Keep password/username in state as backup in case columns are missing
+  // Never persist password hash inside user-facing state JSON
   if (data.state) {
-      if (data.password) data.state._password = data.password;
-      if (data.username) data.state._username = data.username;
+    data.state = sanitizeState(data.state);
+    if (data.username && !data.state.username) data.state.username = data.username;
   }
+
+  const saveObj = { email: id, ...data };
 
   if (supabase) {
     try {
@@ -159,7 +171,7 @@ app.get('/api/state', async (req, res) => {
   const id = req.userEmail;
   if (id === 'guest') return res.json({ success: true, data: JSON.parse(JSON.stringify(defaultState)) });
   const user = await dbGet(id);
-  res.json({ success: true, data: user ? user.state : JSON.parse(JSON.stringify(defaultState)) });
+  res.json({ success: true, data: user ? sanitizeState(user.state) : JSON.parse(JSON.stringify(defaultState)) });
 });
 
 app.patch('/api/state', async (req, res) => {
@@ -167,8 +179,16 @@ app.patch('/api/state', async (req, res) => {
   if (id === 'guest') return res.json({ success: true });
   
   const user = await dbGet(id);
-  const state = (user && user.state && typeof user.state === 'object') ? user.state : JSON.parse(JSON.stringify(defaultState));
-  Object.keys(req.body).forEach(k => { if (req.body[k] !== undefined) state[k] = req.body[k]; });
+  const state = (user && user.state && typeof user.state === 'object') ? sanitizeState(user.state) : JSON.parse(JSON.stringify(defaultState));
+  
+  // Block internal/sensitive fields from client modification
+  const forbiddenKeys = ['_password', 'password', 'email', '_email'];
+  Object.keys(req.body).forEach(k => {
+    if (!forbiddenKeys.includes(k) && req.body[k] !== undefined) {
+      state[k] = req.body[k];
+    }
+  });
+  
   await dbSave(id, { password: user ? user.password : '', username: user ? user.username : '', state });
   res.json({ success: true });
 });
@@ -188,6 +208,7 @@ app.post('/api/xp', authenticate, async (req, res) => {
   if (id === 'guest') return res.json({ success: true });
   const user = await dbGet(id);
   if (!user) return res.json({ success: false });
+  if (!user.state || typeof user.state !== 'object') user.state = JSON.parse(JSON.stringify(defaultState));
   user.state.xp = (user.state.xp || 0) + (Number(req.body.amount) || 0);
   await dbSave(id, user);
   res.json({ success: true, xp: user.state.xp });
@@ -198,6 +219,7 @@ app.post('/api/study-time', authenticate, async (req, res) => {
   if (id === 'guest') return res.json({ success: true });
   const user = await dbGet(id);
   if (!user) return res.json({ success: false });
+  if (!user.state || typeof user.state !== 'object') user.state = JSON.parse(JSON.stringify(defaultState));
   user.state.studyTimeSeconds = (user.state.studyTimeSeconds || 0) + (Number(req.body.seconds) || 0);
   await dbSave(id, user);
   res.json({ success: true, studyTimeSeconds: user.state.studyTimeSeconds });
@@ -209,12 +231,20 @@ app.post('/api/study-time', authenticate, async (req, res) => {
 const { setupAiChatRoutes } = require('./aichat_service');
 setupAiChatRoutes(app);
 
+// Dedicated JSON 404 for unmatched API endpoints
+app.all('/api/*', (req, res) => {
+  res.status(404).json({ success: false, error: 'API endpoint not found' });
+});
+
 // Serving frontend
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-app.listen(PORT, () => {
-  console.log('\n🎌 JLPT Study Hub → http://localhost:' + PORT);
-  console.log('✅ JWT Authentication Middleware active');
-});
+// Serverless / Standalone listen check
+if (require.main === module || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log('\n🎌 JLPT Study Hub → http://localhost:' + PORT);
+    console.log('✅ JWT Authentication Middleware active');
+  });
+}
 
 module.exports = app;

@@ -26,7 +26,7 @@ const EXAM_SETS=[
   {id:24,section:'Grammar',q:'バス（　）がっこうへいきます。',opts:['で','に','を','が'],ans:0,exp:'で marks the means of transport.'},
   {id:25,section:'Grammar',q:'「食べ（　）」— 丁寧形（過去）',opts:['ました','ます','たい','て'],ans:0,exp:'食べました is the polite past form.'},
   {id:26,section:'Grammar',q:'いっしょに　たべ（　）。',opts:['ましょう','ません','ました','ます'],ans:0,exp:'〜ましょう means "let\'s do".'},
-  {id:27,section:'Grammar',q:'ここに　かいて（　）。',opts:['ください','います','あります','います'],ans:0,exp:'〜てください means "please do".'},
+  {id:27,section:'Grammar',q:'ここに　かいて（　）。',opts:['ください','います','あります','みます'],ans:0,exp:'〜てください means "please do".'},
   {id:28,section:'Grammar',q:'つくえの　うえ（　）ほんが　あります。',opts:['に','で','を','は'],ans:0,exp:'に marks the location of existence with あります.'},
   {id:29,section:'Grammar',q:'日本語（　）はなしたいです。',opts:['を','は','が','で'],ans:0,exp:'を marks Japanese as the object of wanting to speak.'},
   {id:30,section:'Grammar',q:'あの　レストランは　（　）たかいです。',opts:['ちょっと','とても','あまり','どんな'],ans:1,exp:'とても means "very" with positive adjectives.'},

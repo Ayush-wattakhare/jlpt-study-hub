@@ -1,5 +1,6 @@
 // Clean AI Voice API handler module
 const fs = require('fs');
+const path = require('path');
 
 function setupAiChatRoutes(app) {
   // Status check for Gemini API
@@ -12,22 +13,30 @@ function setupAiChatRoutes(app) {
     });
   });
 
-  // Save key to .env
+  // Save key to .env (local) and memory (serverless)
   app.post('/api/ai-chat/save-key', async (req, res) => {
     try {
       const { apiKey } = req.body;
       if (!apiKey || !apiKey.trim()) return res.json({ success: false, error: 'API key is required' });
 
       process.env.GEMINI_API_KEY = apiKey.trim();
-      const envPath = 'd:/project/N5 web/jlpt-n5-app/.env';
-      let envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
-      if (envContent.includes('GEMINI_API_KEY=')) {
-        envContent = envContent.replace(/GEMINI_API_KEY=.*(\r?\n|$)/, 'GEMINI_API_KEY=' + apiKey.trim() + '$1');
-      } else {
-        envContent += '\nGEMINI_API_KEY=' + apiKey.trim() + '\n';
+
+      // Gracefully attempt writing to .env if in local/writable environment
+      try {
+        const envPath = path.join(__dirname, '.env');
+        let envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
+        if (envContent.includes('GEMINI_API_KEY=')) {
+          envContent = envContent.replace(/GEMINI_API_KEY=.*(\r?\n|$)/, 'GEMINI_API_KEY=' + apiKey.trim() + '$1');
+        } else {
+          envContent += '\nGEMINI_API_KEY=' + apiKey.trim() + '\n';
+        }
+        fs.writeFileSync(envPath, envContent, 'utf8');
+      } catch (fsErr) {
+        // In read-only serverless environments (like Vercel Lambda), in-memory process.env is active
+        console.warn('Filesystem .env write skipped (read-only environment):', fsErr.message);
       }
-      fs.writeFileSync(envPath, envContent, 'utf8');
-      res.json({ success: true, message: 'Gemini API key saved to server .env!' });
+
+      res.json({ success: true, message: 'Gemini API key connected!' });
     } catch (err) {
       res.json({ success: false, error: err.message });
     }
@@ -103,7 +112,7 @@ function setupAiChatRoutes(app) {
             parts: [{ text: systemPrompt + '\n\nStudent says: "' + trimmedMsg + '"' }]
           });
 
-          const modelsToTry = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash'];
+          const modelsToTry = ['gemini-1.5-flash', 'gemini-2.0-flash'];
           for (const model of modelsToTry) {
             try {
               const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {

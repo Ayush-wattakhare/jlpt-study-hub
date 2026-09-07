@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jlpt-store-v2';
+const CACHE_NAME = 'jlpt-store-v3';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -12,13 +12,13 @@ self.addEventListener('install', (e) => {
       '/js/vocabulary.js',
       '/js/grammar.js',
       '/js/kanji.js',
-      '/js/data-extra.js',
+      '/js/aivoice.js',
       '/js/exam-data.js',
       '/js/n4-tests.js',
       '/js/listening.js',
       '/js/resource.js',
-      '/img/icon-192.jpg',
-      '/img/icon-512.jpg',
+      '/img/icon-192.png',
+      '/img/icon-512.png',
       '/img/screenshot1.png',
       '/img/screenshot2.png'
     ])),
@@ -38,6 +38,11 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  // Never intercept or cache API requests
+  if (e.request.url.includes('/api/')) {
+    return;
+  }
+
   // Network First, falling back to cache
   e.respondWith(
     fetch(e.request).then((response) => {

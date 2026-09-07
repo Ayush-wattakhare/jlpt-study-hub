@@ -1444,10 +1444,15 @@
               <!-- Options populated dynamically -->
             </select>
           </div>
-          <div style="align-self:flex-end">
+          <div style="align-self:flex-end; display:flex; gap:8px; align-items:center; flex-wrap:wrap">
             <button id="conjDrillToggleBtn" class="btn-secondary" style="padding:9px 14px;font-size:13px;display:flex;align-items:center;gap:6px;" onclick="toggleConjDrillMode()">
               <span>🎯</span> <span id="conjDrillBtnText">Active Recall Drill: OFF</span>
             </button>
+            <div id="conjDrillToolbar" style="display:none; align-items:center; gap:8px;">
+              <button class="btn-secondary" style="padding:8px 12px;font-size:12px" onclick="resetConjDrill()" title="Re-hide all conjugations">🔄 Blur All</button>
+              <button class="btn-secondary" style="padding:8px 12px;font-size:12px" onclick="revealAllConjDrill()" title="Show all answers">👁 Reveal All</button>
+              <span id="drillProgressBadge" class="conj-drill-stats-badge">🎯 Recalled: 0 / 0</span>
+            </div>
           </div>
         </div>
 
@@ -1473,6 +1478,7 @@
     <button class="tab-btn active" onclick="practiceTab('kana',this)">ひ Kana Quiz</button>
     <button class="tab-btn" onclick="practiceTab('vocab',this)">📚 Vocab Quiz</button>
     <button class="tab-btn" onclick="practiceTab('grammar',this)">🔤 Grammar Quiz</button>
+    <button class="tab-btn" onclick="practiceTab('particle',this)">🧩 Particle Drill</button>
     <button class="tab-btn" onclick="practiceTab('kanji',this)">漢 Kanji Quiz</button>
     <button class="tab-btn" onclick="practiceTab('flashcard',this)">🃏 SRS Flashcards</button>
     <button class="tab-btn" onclick="practiceTab('listening',this)">🎧 Listening Hub</button>

@@ -97,7 +97,7 @@ function applyStateData(d, isServerMerge = false) {
       const key = `${t.title || 'Test'}_${t.timestamp || 0}_${t.score || 0}`;
       if (!testMap.has(key)) testMap.set(key, t);
     });
-    S.testResults = Array.from(testMap.values()).sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+    S.testResults = Array.from(testMap.values()).sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 30);
 
     // Deduplicate XP history
     const combinedXP = [...(S.xpHistory || []), ...(d.xpHistory || [])];
@@ -317,6 +317,7 @@ async function init(){
   renderStudyTimer();
   initReminderEngine();
   if(!document.querySelector('.mob-nav')) initMobileNav();
+  initHashRouter();
 
   // 2. In background, if logged in, sync with server and merge
   if (!isGuest && currentUser) {
@@ -351,17 +352,57 @@ function toggleTheme(){
   api('PATCH','/api/state',{settings:S.settings});
 }
 
-// ── NAVIGATION ──
+// ── NAVIGATION & HASH ROUTER ──
+function initHashRouter() {
+  const handleHash = () => {
+    const rawHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
+    if (rawHash) {
+      const validPages = ['dashboard', 'learn', 'practice', 'test', 'exam', 'tracker', 'reminders', 'aivoice', 'resource'];
+      if (validPages.includes(rawHash)) {
+        goto(rawHash);
+      }
+    }
+  };
+  window.addEventListener('hashchange', handleHash);
+  if (window.location.hash) {
+    handleHash();
+  }
+}
+
 function goto(page,btn){
+  // Stop ongoing timed exam countdown if navigating away
+  if (page !== 'exam' && S.examTimer) {
+    clearInterval(S.examTimer);
+    S.examTimer = null;
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  }
+
+  const targetPage = document.getElementById('page-' + page);
+  if (!targetPage) return;
+
   document.body.style.overflow = 'auto';
   document.querySelectorAll('.modal-overlay').forEach(m => { m.classList.remove('open'); m.classList.remove('active'); });
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(n=>n.classList.remove('active'));
-  document.getElementById('page-'+page).classList.add('active');
-  if(btn)btn.classList.add('active');
+  targetPage.classList.add('active');
+
+  // Sync active navigation state on desktop and mobile
+  document.querySelectorAll('.nav-btn').forEach(n => {
+    const isTarget = n === btn || n.getAttribute('onclick')?.includes(`'${page}'`);
+    n.classList.toggle('active', !!isTarget);
+  });
+  document.querySelectorAll('.mob-nav-btn').forEach(m => {
+    const isTarget = m === btn || m.getAttribute('onclick')?.includes(`'${page}'`);
+    m.classList.toggle('active', !!isTarget);
+  });
+
+  // Sync URL hash seamlessly
+  if (window.location.hash.replace(/^#\/?/, '') !== page) {
+    try { history.replaceState(null, '', '#' + page); } catch(e) {}
+  }
+
   if(page==='dashboard')renderDashboard();
   else if(page==='learn')renderLearn();
-  else if(page==='practice'){renderPractice('kana');document.querySelectorAll('#practiceTabs .tab-btn')[0].classList.add('active');}
+  else if(page==='practice'){renderPractice('kana');document.querySelectorAll('#practiceTabs .tab-btn')[0]?.classList.add('active');}
   else if(page==='test')renderTestSets();
   else if(page==='exam')renderExamLobby();
   else if(page==='tracker')renderTracker();
@@ -552,8 +593,24 @@ function buildCal(){
 function playJapaneseAudio(text) {
   if (!text || !('speechSynthesis' in window)) return;
   try {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
     window.speechSynthesis.cancel();
-    const cleanText = String(text).replace(/[/／·・]/g, '、').replace(/[()（）]/g, '').trim();
+
+    // Clean text: strip HTML, remove parenthesized furigana so words aren't doubled, clean separators
+    let cleanText = String(text)
+      .replace(/<[^>]*>/g, '')
+      .replace(/（[^）]*）/g, '')
+      .replace(/\([^)]*\)/g, '')
+      .replace(/[/／·・]/g, '、')
+      .trim();
+
+    // Fallback: if entire text was inside parentheses, use text without brackets
+    if (!cleanText) {
+      cleanText = String(text).replace(/<[^>]*>/g, '').replace(/[()（）]/g, '').trim();
+    }
+
     if (!cleanText || cleanText === '—') return;
     const u = new SpeechSynthesisUtterance(cleanText);
     u.lang = 'ja-JP';
@@ -561,7 +618,8 @@ function playJapaneseAudio(text) {
     
     // Pick Japanese voice if available
     const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
-    const jpVoice = voices.find(v => v.lang === 'ja-JP' || v.lang === 'ja_JP' || (v.lang && v.lang.startsWith('ja')));
+    const jpVoice = voices.find(v => (v.lang === 'ja-JP' || v.lang === 'ja_JP') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Haruka') || v.name.includes('Ayumi') || v.name.includes('Kyoko') || v.name.includes('Otoya') || v.name.includes('Nanami'))) ||
+                    voices.find(v => v.lang === 'ja-JP' || v.lang === 'ja_JP' || (v.lang && v.lang.startsWith('ja')));
     if (jpVoice) u.voice = jpVoice;
 
     window.speechSynthesis.speak(u);
@@ -880,8 +938,8 @@ function renderVocabCards() {
 
       <div class="vc-example" style="margin-top:10px;">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;">
-          <div style="font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--ink)">${v.ex}</div>
-          <button class="vc-audio-btn" onclick="event.stopPropagation(); playJapaneseAudio('${v.ex}')" title="Listen example">🔊</button>
+          <div style="font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--ink)">${formatFuriganaRuby(v.ex)}</div>
+          <button class="vc-audio-btn" onclick="event.stopPropagation(); playJapaneseAudio('${cleanRubyAudio(v.ex)}')" title="Listen example">🔊</button>
         </div>
         <div style="color:var(--teal);margin-top:3px;font-size:12px;">${v.exEn}</div>
       </div>
@@ -904,11 +962,57 @@ async function toggleVocab(key, el, name) {
   markActivity();
   api('PATCH', '/api/state', { progress: S.progress, streak: S.streak, lastStudied: S.lastStudied, activityLog: S.activityLog });
 }
+
+function formatFuriganaRuby(text) {
+  if (!text) return '';
+  return String(text).replace(/([一-龯々ヶ]+)[（\(]([ぁ-んァ-ンa-zA-Z\s\/・]+)[\)）]/g, (m, k, r) => `<ruby>${k}<rt>${r}</rt></ruby>`);
+}
+
+function cleanRubyAudio(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/<[^>]*>/g, '')
+    .replace(/（[^）]*）/g, '')
+    .replace(/\([^)]*\)/g, '')
+    .trim();
+}
+
+function getGrammarFormula(g) {
+  if (!g) return '';
+  if (g.formula) return g.formula;
+  const p = g.pattern || '';
+  if (p === '〜は〜です') return '[Noun A] + は + [Noun B] + です';
+  if (p === '〜が〜') return '[Noun / Question Word] + が + [Predicate / Liking / Ability]';
+  if (p === '〜を〜') return '[Noun (Object)] + を + [Transitive Verb]';
+  if (p === '〜に〜') return '[Time / Goal / Location] + に + [Verb / います / あります]';
+  if (p === '〜で〜') return '[Place / Tool / Means] + で + [Action Verb]';
+  if (p.includes('〜ます')) return '[Verb ます-stem] + ます / ません';
+  if (p.includes('〜ました')) return '[Verb ます-stem] + ました / ませんでした';
+  if (p.includes('〜たい')) return '[Verb ます-stem] + たいです (Want to do)';
+  if (p.includes('〜てください')) return '[Verb て-form] + ください (Polite Request)';
+  if (p.includes('〜ています')) return '[Verb て-form] + います (Ongoing action / state)';
+  if (p.includes('〜てもいい')) return '[Verb て-form] + もいいです (Permission: May I...)';
+  if (p.includes('〜てはいけない') || p.includes('〜てはいけません')) return '[Verb て-form] + はいけません (Prohibition: Must not)';
+  if (p.includes('〜ないでください')) return '[Verb ない-form] + でください (Negative request)';
+  if (p.includes('〜なければなりません') || p.includes('〜なくてはいけません')) return '[Verb ない-stem without い] + ければなりません (Obligation: Must)';
+  if (p.includes('〜たことがある') || p.includes('〜たことがあります')) return '[Verb た-form] + ことがあります (Past Experience)';
+  if (p.includes('〜ほうがいい')) return '[Verb た-form (do) / ない-form (don\'t)] + ほうがいいです (Advice)';
+  if (p.includes('〜ことができる')) return '[Verb 辞書形 (Dictionary form)] + ことができます (Ability)';
+  if (p.includes('〜まえに')) return '[Verb 辞書形 / Noun の] + まえに (Before doing...)';
+  if (p.includes('〜あとで')) return '[Verb た-form / Noun の] + あとで (After doing...)';
+  if (p.includes('〜とき')) return '[Verb / い-Adj / な-Adj な / Noun の] + とき (When...)';
+  if (p.includes('〜から') || p.includes('〜ので')) return '[Plain / Polite Clause] + から / ので (Reason: Because...)';
+  if (p.includes('〜ましょう')) return '[Verb ます-stem] + ましょう (Let\'s do!)';
+  if (p.includes('〜つもり')) return '[Verb 辞書形 / ない-form] + つもりです (Intention: Plan to...)';
+  return `${g.pattern} (${g.meaning})`;
+}
+
 function renderGrammar(){
   const data=GRAMMAR[S.level]||[];
   document.getElementById('grammarList').innerHTML=data.map((g)=>{
     const key = `gram-${g.pattern}_${S.level}`;
     const learned = S.progress[key];
+    const formula = getGrammarFormula(g);
     return `
     <div class="gram-card${learned?' learned':''}" onclick="this.classList.toggle('open')">
       <div style="display:flex;justify-content:space-between;align-items:start">
@@ -919,8 +1023,13 @@ function renderGrammar(){
         </div>
       </div>
       <div class="gram-body">
+        ${formula ? `
+          <div class="gram-formula-banner">
+            <span class="gram-formula-tag">Syntax Rule</span>
+            <span class="gram-formula-text">${formula}</span>
+          </div>` : ''}
         <div class="gram-explanation">${g.explanation}</div>
-        ${g.examples.map(e=>`<div class="gram-example"><div class="gram-ex-jp">${e.jp}</div><div class="gram-ex-read">${e.r}</div><div class="gram-ex-en">${e.en}</div></div>`).join('')}
+        ${g.examples.map(e=>`<div class="gram-example"><div class="gram-ex-jp">${formatFuriganaRuby(e.jp)}</div><div class="gram-ex-read">${e.r}</div><div class="gram-ex-en">${e.en}</div></div>`).join('')}
         ${g.notes?`<div class="gram-notes">💡 ${g.notes}</div>`:''}
       </div>
     </div>`
@@ -1152,8 +1261,14 @@ function navKanaModal(delta){
   }
 }
 
-// Global Keyboard Navigation for Character Modal
+// Global Keyboard Navigation for Character Modal & Escape Key
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeKanjiModal();
+    closeModal();
+    if (typeof closeAiKeyModal === 'function') closeAiKeyModal();
+    return;
+  }
   const modal = document.getElementById('kanji-detail-modal');
   if(!modal || !modal.classList.contains('open')) return;
   if(e.key === 'ArrowRight') { navKanaModal(1); }
@@ -1488,12 +1603,26 @@ const ADVANCED_PRACTICE_DATA = {
     }
   ],
   grammarParticles: [
-    { q: 'わたし（　）毎朝　コーヒーを　飲みます。', opts: ['は', 'が', 'を', 'に'], ans: 0, exp: 'は marks the main topic of the sentence (わたしは).' },
-    { q: '図書館（　）本を　勉強します。', opts: ['で', 'に', 'を', 'から'], ans: 0, exp: 'で marks the location where an action takes place (図書館で).' },
-    { q: '来週　京都（　）行きます。', opts: ['へ', 'で', 'を', 'が'], ans: 0, exp: 'へ (or に) marks the direction or destination (京都へ).' },
-    { q: '毎朝　７時（　）起きます。', opts: ['に', 'で', 'を', 'は'], ans: 0, exp: 'に marks a specific point in time (７時に).' },
-    { q: '駅（　）家まで　歩いて　１５分です。', opts: ['から', 'まで', 'に', 'で'], ans: 0, exp: 'から means "from" starting point (駅から).' },
-    { q: '友達（　）一緒に　映画を　見ました。', opts: ['と', 'に', 'で', 'を'], ans: 0, exp: 'と indicates "together with" someone (友達と).' }
+    { q: 'わたし（　）学生です。', opts: ['は', 'が', 'を', 'に'], ans: 0, exp: 'は (wa) marks the sentence topic: "As for me, I am a student."' },
+    { q: '教室に　だれ（　）いますか。', opts: ['が', 'は', 'を', 'で'], ans: 0, exp: 'Question words like だれ (who) or 何 (what) always take the subject marker が when asking about identity.' },
+    { q: '図書館（　）本を　読みます。', opts: ['で', 'に', 'を', 'へ'], ans: 0, exp: 'で marks the location where a dynamic action takes place (図書館で = at the library).' },
+    { q: '部屋（　）猫が　います。', opts: ['に', 'で', 'を', 'と'], ans: 0, exp: 'に marks the location of static existence for います / あります (部屋に = in the room).' },
+    { q: '毎朝　７時（　）起きます。', opts: ['に', 'で', 'を', 'は'], ans: 0, exp: 'に marks a specific numerical point in time (７時に = at 7 o\'clock).' },
+    { q: '来週　京都（　）行きます。', opts: ['へ', 'で', 'を', 'から'], ans: 0, exp: 'へ (pronounced "e") marks the direction or destination of movement (京都へ = to Kyoto).' },
+    { q: '朝ご飯に　パン（　）卵を　食べました。', opts: ['と', 'や', 'で', 'に'], ans: 0, exp: 'と forms an exhaustive listing ("A and B" — only these two items).' },
+    { q: 'わたしは　日本語（　）分かります。', opts: ['が', 'を', 'で', 'に'], ans: 0, exp: 'Verbs of ability and state like 分かる (understand) and できる (can do) take が for their object.' },
+    { q: '天気がいいので、公園（　）散歩します。', opts: ['を', 'で', 'に', 'へ'], ans: 0, exp: 'を marks the path or space through which motion occurs (公園を散歩する = walk through the park).' },
+    { q: '駅（　）家まで　歩いて　１５分です。', opts: ['から', 'まで', 'に', 'で'], ans: 0, exp: 'から marks the starting point ("from the station"), paired with まで ("until home").' },
+    { q: '毎日　午後５時（　）働きます。', opts: ['まで', 'から', 'に', 'で'], ans: 0, exp: 'まで indicates the ending limit or duration ("until 5 PM").' },
+    { q: '新幹線は　バス（　）速いです。', opts: ['より', 'ほど', 'から', 'と'], ans: 0, exp: 'より marks the standard of comparison ("faster than a bus").' },
+    { q: '田中さん（　）一緒に　映画を　見ました。', opts: ['と', 'に', 'で', 'を'], ans: 0, exp: 'と marks the partner or companion ("together with Tanaka-san").' },
+    { q: '電車（　）学校へ　行きます。', opts: ['で', 'に', 'を', 'から'], ans: 0, exp: 'で indicates means of transportation or tools used (電車で = by train).' },
+    { q: '机の上に　本（　）ペンなどが　あります。', opts: ['や', 'と', 'に', 'で'], ans: 0, exp: 'や marks a non-exhaustive listing ("books, pens, and other things like that").' },
+    { q: '山田さんも　パーティーに　来ます（　）。', opts: ['か', 'ね', 'よ', 'の'], ans: 0, exp: 'か at the end of a sentence marks it as a polite question.' },
+    { q: '今日は　とても　いい天気です（　）。', opts: ['ね', 'よ', 'か', 'わ'], ans: 0, exp: 'ね seeks mutual agreement and confirmation ("It\'s nice weather, isn\'t it?").' },
+    { q: 'わたし（　）その映画を　見ました。', opts: ['も', 'を', 'に', 'で'], ans: 0, exp: 'も means "also / too" and replaces は or が to express inclusion.' },
+    { q: '日本語（　）手紙を　書きました。', opts: ['で', 'に', 'を', 'へ'], ans: 0, exp: 'で marks the language or instrument used to complete an action (日本語で = in Japanese).' },
+    { q: '父（　）ネクタイを　プレゼントしました。', opts: ['に', 'で', 'を', 'から'], ans: 0, exp: 'に marks the recipient or beneficiary of giving (父に = to my father).' }
   ],
   grammarConjugations: [
     { q: '「食べる」の　丁寧語（ます形）は？', opts: ['食べます', '食べた', '食べて', '食べない'], ans: 0, exp: 'The polite present form of 食べる is 食べます.' },
@@ -1556,10 +1685,21 @@ const ADVANCED_PRACTICE_DATA = {
 function practiceTab(type, btn) {
   document.querySelectorAll('#practiceTabs .tab-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+  if (type === 'particle') {
+    practiceState.type = 'grammar';
+    practiceState.subMode = 'particles';
+    renderPracticeSubBar('grammar', 'particles');
+    renderGrammarQuiz('particles');
+    return;
+  }
   renderPractice(type);
 }
 
 function renderPractice(type, subMode) {
+  if (type === 'particle') {
+    type = 'grammar';
+    subMode = 'particles';
+  }
   practiceState.type = type;
   
   if (!subMode) {
@@ -2059,22 +2199,30 @@ function renderSRSFlashcardCard() {
         <div class="srs-fc-inner">
           <div class="srs-fc-front">
             <div style="font-size:54px;font-family:'Noto Sans JP',sans-serif;font-weight:700">${c.front}</div>
-            <div style="font-size:12px;opacity:0.6;margin-top:12px">Tap card to flip 🔄</div>
+            <div style="font-size:12px;opacity:0.75;margin-top:12px">Tap card or press <kbd class="kbd-hint">Space</kbd> to flip 🔄</div>
           </div>
           <div class="srs-fc-back">
-            <div style="font-size:28px;font-family:'Noto Sans JP',sans-serif;font-weight:700;color:var(--indigo);margin-bottom:6px">${c.back}</div>
+            <div style="font-size:28px;font-family:'Noto Sans JP',sans-serif;font-weight:700;color:var(--indigo);margin-bottom:6px">${formatFuriganaRuby(c.back)}</div>
             <div style="font-size:16px;font-weight:600;color:var(--teal);margin-bottom:10px">${c.mean}</div>
-            ${c.ex ? `<div style="font-size:12px;color:var(--muted);text-align:center">${c.ex}</div>` : ''}
-            <button class="pnd-audio-btn" style="margin-top:14px" onclick="event.stopPropagation(); playJapaneseAudio('${c.tts}')">🔊 Listen</button>
+            ${c.ex ? `<div style="font-size:12px;color:var(--muted);text-align:center">${formatFuriganaRuby(c.ex)}</div>` : ''}
+            <button class="pnd-audio-btn" style="margin-top:14px" onclick="event.stopPropagation(); playJapaneseAudio('${cleanRubyAudio(c.tts)}')">🔊 Listen</button>
           </div>
         </div>
       </div>
 
       <div class="srs-btn-row">
-        <button class="srs-btn again" onclick="handleSRSAction('again')">🔴 Again<span>+0 XP</span></button>
-        <button class="srs-btn hard" onclick="handleSRSAction('hard')">🟡 Hard<span>+2 XP</span></button>
-        <button class="srs-btn good" onclick="handleSRSAction('good')">🟢 Good<span>+5 XP</span></button>
-        <button class="srs-btn easy" onclick="handleSRSAction('easy')">🔵 Mastered<span>+10 XP</span></button>
+        <button class="srs-btn again" onclick="handleSRSAction('again')"><span class="srs-kbd-badge">1</span> 🔴 Again<span>+0 XP</span></button>
+        <button class="srs-btn hard" onclick="handleSRSAction('hard')"><span class="srs-kbd-badge">2</span> 🟡 Hard<span>+2 XP</span></button>
+        <button class="srs-btn good" onclick="handleSRSAction('good')"><span class="srs-kbd-badge">3</span> 🟢 Good<span>+5 XP</span></button>
+        <button class="srs-btn easy" onclick="handleSRSAction('easy')"><span class="srs-kbd-badge">4</span> 🔵 Mastered<span>+10 XP</span></button>
+      </div>
+
+      <div class="srs-kbd-helper-row">
+        <span>⌨️ Keyboard: <kbd class="kbd-hint">Space</kbd> Flip</span>
+        <span><kbd class="kbd-hint">1</kbd> Again</span>
+        <span><kbd class="kbd-hint">2</kbd> Hard</span>
+        <span><kbd class="kbd-hint">3</kbd> Good</span>
+        <span><kbd class="kbd-hint">4</kbd> Mastered</span>
       </div>
     </div>`;
 }
@@ -2085,7 +2233,7 @@ function toggleSRSFlip() {
     fc.classList.toggle('flipped');
     if (fc.classList.contains('flipped')) {
       const c = practiceState.pool[practiceState.idx];
-      if (c && c.tts) playJapaneseAudio(c.tts);
+      if (c && c.tts) playJapaneseAudio(cleanRubyAudio(c.tts));
     }
   }
 }
@@ -2108,6 +2256,36 @@ function handleSRSAction(rating) {
 
   practiceState.idx++;
   renderSRSFlashcardCard();
+}
+
+// Flashcard desktop keyboard handler
+if (!window._srsKeydownAttached) {
+  window._srsKeydownAttached = true;
+  window.addEventListener('keydown', (e) => {
+    const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+    if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
+
+    const practicePage = document.getElementById('page-practice');
+    if (!practicePage || !practicePage.classList.contains('active')) return;
+    if (practiceState.type !== 'flashcard') return;
+
+    if (e.code === 'Space') {
+      e.preventDefault();
+      toggleSRSFlip();
+    } else if (e.key === '1' || e.code === 'Digit1' || e.code === 'Numpad1') {
+      e.preventDefault();
+      handleSRSAction('again');
+    } else if (e.key === '2' || e.code === 'Digit2' || e.code === 'Numpad2') {
+      e.preventDefault();
+      handleSRSAction('hard');
+    } else if (e.key === '3' || e.code === 'Digit3' || e.code === 'Numpad3') {
+      e.preventDefault();
+      handleSRSAction('good');
+    } else if (e.key === '4' || e.code === 'Digit4' || e.code === 'Numpad4') {
+      e.preventDefault();
+      handleSRSAction('easy');
+    }
+  });
 }
 
 // ── 6. LISTENING HUB ──
@@ -2297,6 +2475,7 @@ function submitPracticeTest(){
   const timeTaken=Math.round((Date.now()-startTime)/1000);
   const result={title:set.title,score,correct,total:qs.length,level:set.level||S.level,weakAreas:Object.keys(weak),timestamp:new Date().toISOString()};
   S.testResults.unshift(result);
+  if (S.testResults.length > 30) S.testResults = S.testResults.slice(0, 30);
   Object.keys(weak).forEach(k=>{S.weakAreas[k]=(S.weakAreas[k]||0)+weak[k];});
   api('PATCH','/api/state',{testResults:S.testResults,weakAreas:S.weakAreas});
   gainXP(score*2);
@@ -2623,6 +2802,7 @@ function submitExam(manual) {
   };
 
   S.testResults.unshift(result);
+  if (S.testResults.length > 30) S.testResults = S.testResults.slice(0, 30);
   Object.keys(weak).forEach(k => { S.weakAreas[k] = (S.weakAreas[k] || 0) + weak[k]; });
   api('PATCH', '/api/state', { testResults: S.testResults, weakAreas: S.weakAreas });
   gainXP(score * 3, 'Live Exam Score');
@@ -2685,25 +2865,33 @@ function renderStudyTimer(){
   if (btnEl) btnEl.textContent = S.timerRunning ? '⏸' : '▶';
 }
 
+function flushStudyTime(){
+  const delta = S.timerSeconds - (S.lastSyncedSeconds || 0);
+  if (delta > 0) {
+    S.lastSyncedSeconds = S.timerSeconds;
+    S.studyTimeSeconds = (S.studyTimeSeconds || 0) + delta;
+    api('POST', '/api/study-time', { seconds: delta });
+    saveLocalState();
+  }
+}
+
 function timerToggle(){
   if(S.timerRunning){
     // PAUSE
     clearInterval(S.timerInterval);
     S.timerInterval = null;
     S.timerRunning = false;
-    
-    // Sync incremental time to server
-    const delta = S.timerSeconds - (S.lastSyncedSeconds || 0);
-    if (delta > 0) {
-        api('POST', '/api/study-time', { seconds: delta });
-        S.studyTimeSeconds += delta;
-        S.lastSyncedSeconds = S.timerSeconds;
-    }
+    flushStudyTime();
   } else {
     // RESUME / START
+    if (S.timerInterval) clearInterval(S.timerInterval);
     S.timerRunning = true;
     S.timerInterval = setInterval(() => {
         S.timerSeconds++;
+        // Auto-sync every 60 seconds
+        if (S.timerSeconds % 60 === 0) {
+          flushStudyTime();
+        }
         renderStudyTimer();
     }, 1000);
   }
@@ -2717,11 +2905,7 @@ async function timerReset(){
   S.timerRunning = false;
 
   // Sync remaining time before reset
-  const delta = S.timerSeconds - (S.lastSyncedSeconds || 0);
-  if (delta > 0) {
-      await api('POST', '/api/study-time', { seconds: delta });
-      S.studyTimeSeconds += delta;
-  }
+  flushStudyTime();
   
   // Fully reset
   S.timerSeconds = 0;
@@ -2729,6 +2913,18 @@ async function timerReset(){
   renderStudyTimer();
   toast('Timer reset');
 }
+
+// Lifecycle listeners to prevent timer loss on tab switch or close
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && S.timerRunning) {
+    flushStudyTime();
+  }
+});
+window.addEventListener('beforeunload', () => {
+  if (S.timerRunning) {
+    flushStudyTime();
+  }
+});
 
 // ── XP & ACTIVITY ──
 function gainXP(amount, reason="Practice"){
@@ -2832,17 +3028,17 @@ function initMobileNav(){
   if(document.querySelector('.mob-nav'))return;
   document.body.insertAdjacentHTML('beforeend',`
     <nav class="mob-nav">
-      <button class="mob-nav-btn active" onclick="goto('dashboard',null);setMobActive(this)"><span>⊞</span><span>Home</span></button>
-      <button class="mob-nav-btn" onclick="goto('learn',null);setMobActive(this)"><span>📖</span><span>Learn</span></button>
-      <button class="mob-nav-btn" onclick="goto('practice',null);setMobActive(this)"><span>✏️</span><span>Practice</span></button>
-      <button class="mob-nav-btn" onclick="goto('tracker',null);setMobActive(this)"><span>📊</span><span>Tracker</span></button>
-      <button class="mob-nav-btn" onclick="goto('reminders',null);setMobActive(this)"><span>🔔</span><span>Notice</span></button>
-      <button class="mob-nav-btn" onclick="goto('resource',null);setMobActive(this)"><span>📂</span><span>Files</span></button>
+      <button class="mob-nav-btn active" onclick="goto('dashboard',null)"><span>⊞</span><span>Home</span></button>
+      <button class="mob-nav-btn" onclick="goto('learn',null)"><span>📖</span><span>Learn</span></button>
+      <button class="mob-nav-btn" onclick="goto('practice',null)"><span>✏️</span><span>Practice</span></button>
+      <button class="mob-nav-btn" onclick="goto('exam',null)"><span>📝</span><span>Exam</span></button>
+      <button class="mob-nav-btn" onclick="goto('aivoice',null)"><span>🌸</span><span>Voice</span></button>
+      <button class="mob-nav-btn" onclick="goto('tracker',null)"><span>📊</span><span>Tracker</span></button>
     </nav>`);
 }
 function setMobActive(el){
   document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.remove('active'));
-  el.classList.add('active');
+  if (el) el.classList.add('active');
 }
 
 // ── MODAL ──
@@ -3442,8 +3638,49 @@ function onConjWordSelect(wordJp) {
 function toggleConjDrillMode() {
   window.conjExplorerState.drillMode = !window.conjExplorerState.drillMode;
   const btn = document.getElementById('conjDrillBtnText');
+  const tb = document.getElementById('conjDrillToolbar');
   if (btn) btn.textContent = window.conjExplorerState.drillMode ? 'Active Recall Drill: ON (Answers Hidden)' : 'Active Recall Drill: OFF';
+  if (tb) tb.style.display = window.conjExplorerState.drillMode ? 'inline-flex' : 'none';
   renderConjWordDetail(window.conjExplorerState.selectedJp);
+}
+
+function revealSingleDrillCell(el, val) {
+  if (el && el.classList.contains('hidden')) {
+    el.classList.remove('hidden');
+    if (val) playJapaneseAudio(cleanRubyAudio(val));
+    updateDrillProgress();
+  }
+}
+
+function resetConjDrill() {
+  const cells = document.querySelectorAll('.conj-drill-cell');
+  cells.forEach(c => c.classList.add('hidden'));
+  updateDrillProgress();
+  toast('Drill reset: all answers hidden 🎯');
+}
+
+function revealAllConjDrill() {
+  const cells = document.querySelectorAll('.conj-drill-cell');
+  cells.forEach(c => c.classList.remove('hidden'));
+  updateDrillProgress();
+  toast('All conjugations revealed 👁');
+}
+
+function updateDrillProgress() {
+  const total = document.querySelectorAll('.conj-drill-cell').length;
+  const hidden = document.querySelectorAll('.conj-drill-cell.hidden').length;
+  const revealed = total - hidden;
+  const badge = document.getElementById('drillProgressBadge');
+  if (badge) {
+    if (total > 0 && revealed === total) {
+      badge.classList.add('completed');
+      badge.innerHTML = `🎉 All ${total} Mastered! (+5 XP)`;
+      gainXP(5, 'Conjugation Active Recall Completed');
+    } else {
+      badge.classList.remove('completed');
+      badge.innerHTML = `🎯 Recalled: ${revealed} / ${total}`;
+    }
+  }
 }
 
 function renderConjWordDetail(wordJp) {
@@ -3461,12 +3698,12 @@ function renderConjWordDetail(wordJp) {
 
   function makeDrillCell(val) {
     if (!isDrill) {
-      return `<strong>${val}</strong> <button class="pnd-mini-audio" onclick="playJapaneseAudio('${val}')">🔊</button>`;
+      return `<strong>${val}</strong> <button class="pnd-mini-audio" onclick="playJapaneseAudio('${cleanRubyAudio(val)}')">🔊</button>`;
     }
     return `
-      <div class="conj-drill-cell hidden" onclick="this.classList.remove('hidden')" title="Click to reveal">
+      <div class="conj-drill-cell hidden" onclick="revealSingleDrillCell(this, '${val}')" title="Click to reveal">
         <span class="conj-val-text">${val}</span>
-        <button class="pnd-mini-audio" onclick="event.stopPropagation(); playJapaneseAudio('${val}')" style="margin-left:6px">🔊</button>
+        <button class="pnd-mini-audio" onclick="event.stopPropagation(); playJapaneseAudio('${cleanRubyAudio(val)}')" style="margin-left:6px">🔊</button>
       </div>`;
   }
 
@@ -3489,8 +3726,8 @@ function renderConjWordDetail(wordJp) {
               <td>${makeDrillCell(word.conj.politePres)}</td>
               <td>${makeDrillCell(word.jp)}</td>
               <td rowspan="2" style="vertical-align:middle;background:var(--surface, rgba(0,0,0,0.01))">
-                <strong style="font-family:'Noto Sans JP',sans-serif">${word.ex}</strong>
-                <button class="pnd-mini-audio" onclick="playJapaneseAudio('${word.ex}')">🔊</button>
+                <strong style="font-family:'Noto Sans JP',sans-serif">${formatFuriganaRuby(word.ex)}</strong>
+                <button class="pnd-mini-audio" onclick="playJapaneseAudio('${cleanRubyAudio(word.ex)}')">🔊</button>
                 <div style="font-size:12px;color:var(--teal);margin-top:4px">${word.exEn}</div>
               </td>
             </tr>
@@ -3543,8 +3780,8 @@ function renderConjWordDetail(wordJp) {
               <td>${makeDrillCell(word.conj.presAff)}</td>
               <td>${makeDrillCell(word.conj.presNeg)}</td>
               <td rowspan="2" style="vertical-align:middle;background:var(--surface, rgba(0,0,0,0.01))">
-                <strong style="font-family:'Noto Sans JP',sans-serif">${word.ex}</strong>
-                <button class="pnd-mini-audio" onclick="playJapaneseAudio('${word.ex}')">🔊</button>
+                <strong style="font-family:'Noto Sans JP',sans-serif">${formatFuriganaRuby(word.ex)}</strong>
+                <button class="pnd-mini-audio" onclick="playJapaneseAudio('${cleanRubyAudio(word.ex)}')">🔊</button>
                 <div style="font-size:12px;color:var(--teal);margin-top:4px">${word.exEn}</div>
               </td>
             </tr>
@@ -3564,7 +3801,7 @@ function renderConjWordDetail(wordJp) {
       <div style="display:flex;align-items:center;gap:12px;">
         <span style="font-size:28px;font-family:'Noto Sans JP',sans-serif;font-weight:700;color:var(--ink)">${word.jp}</span>
         <span style="font-size:16px;color:var(--muted)">(${word.r})</span>
-        <button class="pnd-audio-btn" onclick="playJapaneseAudio('${word.jp}')" title="Listen">🔊</button>
+        <button class="pnd-audio-btn" onclick="playJapaneseAudio('${cleanRubyAudio(word.jp)}')" title="Listen">🔊</button>
         <span style="font-size:16px;font-weight:600;color:var(--teal);margin-left:8px">${word.en}</span>
       </div>
       <div style="display:flex;gap:6px;align-items:center">
@@ -3575,4 +3812,8 @@ function renderConjWordDetail(wordJp) {
     ${word.note ? `<div class="vc-note-box" style="margin-bottom:12px;">💡 ${word.note}</div>` : ''}
     ${tableHtml}
   `;
+
+  if (isDrill) {
+    setTimeout(updateDrillProgress, 20);
+  }
 }

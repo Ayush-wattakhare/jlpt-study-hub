@@ -304,19 +304,21 @@ function appendAiMessage(data) {
         <span class="replies-label">💬 Quick Reply Options:</span>
         <div class="replies-grid">
           ${data.suggestedReplies.map((r, rIdx) => `
-            <button class="reply-chip" onclick="sendQuickReplyByIndex(${msgIdx}, ${rIdx})">${escapeHtml(r)}</button>
+            <button class="reply-chip" onclick="sendQuickReplyByIndex(${msgIdx}, ${rIdx})">${formatFuriganaRuby(escapeHtml(r))}</button>
           `).join('')}
         </div>
       </div>
     `;
   }
 
+  const formattedJp = data.japanese ? formatFuriganaRuby(escapeHtml(data.japanese)).replace(/\n/g, '<br>') : '';
+
   msgDiv.innerHTML = `
     <div class="chat-sender-row">
       <div class="chat-sender-name">🌸 さくら先生 (Sakura-sensei)</div>
       <button class="chat-audio-btn" onclick="playAiMessageAudio(${msgIdx})">🔊 Play Voice</button>
     </div>
-    <div class="chat-text-jp">${data.japanese ? data.japanese.replace(/\n/g, '<br>') : ''}</div>
+    <div class="chat-text-jp">${formattedJp}</div>
     
     ${showTrans && data.romaji ? `<div class="chat-text-romaji"><code>${escapeHtml(data.romaji)}</code></div>` : ''}
     ${showTrans && data.english ? `<div class="chat-text-en">${escapeHtml(data.english)}</div>` : ''}
@@ -652,4 +654,9 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+function formatFuriganaRuby(text) {
+  if (!text) return '';
+  return String(text).replace(/([一-龯々ヶ]+)[（\(]([ぁ-んァ-ンa-zA-Z\s\/・]+)[\)）]/g, (m, k, r) => `<ruby>${k}<rt>${r}</rt></ruby>`);
 }

@@ -2178,3 +2178,113 @@ body{font-family:var(--font-body);background:var(--surface);color:var(--ink);min
   padding: 3px 8px;
   border-radius: 4px;
 }
+
+/* ── Native Ruby Furigana Typography ── */
+ruby {
+  ruby-position: over;
+  ruby-align: center;
+  line-height: 1.6;
+}
+rt {
+  font-size: 0.58em;
+  font-weight: 600;
+  color: var(--teal, #0d9488);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  user-select: none;
+}
+[data-theme="dark"] rt {
+  color: #34d399;
+}
+
+/* ── Flashcard Keyboard Shortcuts ── */
+.srs-kbd-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  margin-right: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  vertical-align: middle;
+}
+[data-theme="dark"] .srs-kbd-badge {
+  background: rgba(255, 255, 255, 0.15);
+}
+.kbd-hint {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  background: var(--surface2, #eee);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.12);
+  color: var(--ink);
+}
+.srs-kbd-helper-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+
+/* ── Active Recall Drill Toolbar & Progress ── */
+.conj-drill-controls-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.conj-drill-stats-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: rgba(230, 81, 0, 0.1);
+  color: var(--accent, #e65100);
+  border: 1px solid rgba(230, 81, 0, 0.25);
+}
+.conj-drill-stats-badge.completed {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--teal, #10b981);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* ── Grammar Syntax Formula Banners ── */
+.gram-formula-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: rgba(99, 102, 241, 0.08);
+  border-left: 3px solid var(--indigo, #6366f1);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.gram-formula-tag {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  background: var(--indigo, #6366f1);
+  color: white;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+.gram-formula-text {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 700;
+  color: var(--ink);
+}
