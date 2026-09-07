@@ -316,6 +316,7 @@ async function init(){
   renderDashboard();
   renderStudyTimer();
   initReminderEngine();
+  initMotivationalQuoteSystem();
   if(!document.querySelector('.mob-nav')) initMobileNav();
   initHashRouter();
 
@@ -556,6 +557,279 @@ function renderDashboard(){
   // Test History
   const th=document.getElementById('testHistoryPanel');
   if(th)th.innerHTML=S.testResults.slice(0,4).map(t=>`<div class="test-hist-item"><div style="display:flex;justify-content:space-between"><strong>${t.title||'Test'}</strong><span class="test-hist-score" style="color:${t.score>=60?'var(--teal)':'var(--red)'}">${Math.round(t.score)}%</span></div><div style="color:var(--muted);font-size:11px">${new Date(t.timestamp).toLocaleDateString()} · ${t.correct||0}/${t.total||0} correct</div></div>`).join('')||'<div style="font-size:13px;color:var(--muted)">No tests taken yet.</div>';
+
+  // 5-Min Energetic Motivational Quote
+  renderDashboardQuote(currentMotivationalQuote);
+}
+
+// ── ⚡ 5-MINUTE ENERGETIC MOTIVATIONAL QUOTE SYSTEM ──
+const MOTIVATIONAL_QUOTES = [
+  {
+    jp: '七転（ななころ）び八起（やお）き',
+    r: 'Nanakorobi yaoki',
+    en: 'Fall seven times, stand up eight. Every stumble makes your inner fire burn ten times brighter!',
+    theme: '🔥 Indomitable Resilience',
+    source: 'Japanese Proverb'
+  },
+  {
+    jp: '継続（けいぞく）は力（ちから）なり',
+    r: 'Keizoku wa chikara nari',
+    en: 'Consistency is supreme power. What you master every single day defines your extraordinary future.',
+    theme: '⚡ Relentless Consistency',
+    source: 'Japanese Proverb'
+  },
+  {
+    jp: '精神一到（せいしんいっとう）何事（なにごと）か成（な）らざらん',
+    r: 'Seishin ittō nanigoto ka narazaran',
+    en: 'Focus your mind and soul completely on your goal, and nothing in this world is impossible!',
+    theme: '🎯 Absolute Focus',
+    source: 'Ancient Wisdom'
+  },
+  {
+    jp: '千里（せんり）の道（みち）も一歩（いっぽ）から',
+    r: 'Senri no michi mo ippo kara',
+    en: 'Even a journey of ten thousand miles begins with a single decisive step. Take it right now!',
+    theme: '🚀 Decisive Action',
+    source: 'Eastern Philosophy'
+  },
+  {
+    jp: '初志貫徹（しょしかんてつ）',
+    r: 'Shoshi kantetsu',
+    en: 'Pierce through to the very end with your original burning ambition. Never back down!',
+    theme: '⚔️ Unwavering Purpose',
+    source: 'Yojijukugo'
+  },
+  {
+    jp: '一期一会（いちごいちえ）',
+    r: 'Ichigo ichie',
+    en: 'This moment will never repeat in your entire life. Pour your whole soul into this hour!',
+    theme: '✨ Seize The Present',
+    source: 'Sen no Rikyu'
+  },
+  {
+    jp: '雨（あめ）降（ふ）って地（じ）固（かた）まる',
+    r: 'Ame futte ji katamaru',
+    en: 'After the storm, the earth hardens into stone. Hardship is forging you into an unstoppable force.',
+    theme: '🛡️ Growth Through Fire',
+    source: 'Japanese Proverb'
+  },
+  {
+    jp: '不撓不屈（ふとうふくつ）の精神（せいしん）',
+    r: 'Futō fukutsu no seishin',
+    en: 'An unbending, unyielding, invincible spirit that refuses to bow before any obstacle.',
+    theme: '🥋 Samurai Spirit',
+    source: 'Bushido Code'
+  },
+  {
+    jp: '塵（ちり）も積（つ）もれば山（やま）となる',
+    r: 'Chiri mo tsumoreba yama to naru',
+    en: 'Even specks of dust, gathered every single day, become a towering mountain. Every word matters!',
+    theme: '🏔️ Compounding Mastery',
+    source: 'Japanese Proverb'
+  },
+  {
+    jp: '日進月歩（にっしんげっぽ）',
+    r: 'Nisshin geppo',
+    en: 'Advancing daily, leaping forward monthly. Dedicate yourself to continuous self-evolution!',
+    theme: '📈 Endless Evolution',
+    source: 'Yojijukugo'
+  },
+  {
+    jp: '知行合一（ちこうごういつ）',
+    r: 'Chikō gōitsu',
+    en: 'To know and not to act is not to know. True knowledge is proven only through massive execution!',
+    theme: '⚡ Massive Action',
+    source: 'Bushido Philosophy'
+  },
+  {
+    jp: '今日（きょう）の一歩（いっぽ）が未来（みらい）を作（つく）る',
+    r: 'Kyou no ippo ga mirai wo tsukuru',
+    en: 'The actions you take in the next 60 minutes are creating the reality of your future self!',
+    theme: '🌟 Create Your Destiny',
+    source: 'Sensei Wisdom'
+  },
+  {
+    jp: '臥薪嘗胆（がしんしょうたん）',
+    r: 'Gashin shōtan',
+    en: 'Embrace the grind and conquer the sweat today to claim your greatest victory tomorrow!',
+    theme: '💪 Embrace The Grind',
+    source: 'Yojijukugo'
+  },
+  {
+    jp: '百聞（ひゃくぶん）は一見（いっけん）に如（し）かず',
+    r: 'Hyakubun wa ikken ni shikazu',
+    en: 'Hearing a hundred times cannot match doing it once yourself. Dive in with confidence!',
+    theme: '🔥 Direct Experience',
+    source: 'Japanese Proverb'
+  },
+  {
+    jp: '初心（しょしん）忘（わす）るべからず',
+    r: 'Shoshin wasuru bekarazu',
+    en: 'Never forget the beginner’s hunger, excitement, and fearless energy that began this journey!',
+    theme: '❤️ Ignited Passion',
+    source: 'Zeami'
+  },
+  {
+    jp: '自分（じぶん）に勝（か）つ者（もの）は強（つよ）し',
+    r: 'Jibun ni katsu mono wa tsuyoshi',
+    en: 'He who conquers others is strong; he who conquers his own mind is truly invincible!',
+    theme: '👑 Self-Mastery',
+    source: 'Philosophical Principle'
+  },
+  {
+    jp: '一刀両断（いっとうりょうだん）',
+    r: 'Ittō ryōdan',
+    en: 'Slice clean through hesitation and doubt with a single decisive stroke. Trust your training!',
+    theme: '⚔️ Decisive Courage',
+    source: 'Samurai Maxim'
+  },
+  {
+    jp: '明（あ）けない夜（よる）はない',
+    r: 'Akenai yoru wa nai',
+    en: 'There is no night that does not break into brilliant sunrise. Keep pushing, morning is coming!',
+    theme: '🌅 Unstoppable Hope',
+    source: 'Japanese Proverb'
+  },
+  {
+    jp: '勝（か）って兜（かぶと）の緒（お）を締（し）めよ',
+    r: 'Katte kabuto no o wo shimeyo',
+    en: 'Tighten your helmet strings even in victory. Stay humble, stay sharp, and elevate your standards.',
+    theme: '🎖️ Elite Standards',
+    source: 'Samurai Proverb'
+  },
+  {
+    jp: '急（いそ）がば回（まわ）れ',
+    r: 'Isogaba maware',
+    en: 'When in haste, master the deep fundamentals. Deep roots create stormproof greatness.',
+    theme: '🌱 Deep Foundations',
+    source: 'Japanese Proverb'
+  }
+];
+
+let currentMotivationalQuote = null;
+let nextQuoteSeconds = 300; // 5 minutes (300 seconds)
+let floatingQuoteTimeout = null;
+
+function getRandomMotivationalQuote() {
+  const currentJp = currentMotivationalQuote ? currentMotivationalQuote.jp : '';
+  const candidates = MOTIVATIONAL_QUOTES.filter(q => q.jp !== currentJp);
+  return candidates[Math.floor(Math.random() * candidates.length)] || MOTIVATIONAL_QUOTES[0];
+}
+
+function renderDashboardQuote(quote) {
+  if (!quote) quote = currentMotivationalQuote || MOTIVATIONAL_QUOTES[0];
+  const themeEl = document.getElementById('dashQuoteTheme');
+  const bodyEl = document.getElementById('dashQuoteBody');
+  if (!bodyEl) return;
+
+  if (themeEl) themeEl.textContent = quote.theme || '⚡ 5-MIN ENERGY BOOST';
+
+  const cleanAudio = cleanRubyAudio(quote.jp);
+  bodyEl.innerHTML = `
+    <div class="dash-quote-jp-row">
+      <div class="dash-quote-jp">${formatFuriganaRuby(quote.jp)}</div>
+      <button class="dash-quote-audio-btn" onclick="playJapaneseAudio('${cleanAudio}')" title="Listen Pronunciation">🔊</button>
+      <span style="font-size:12px;color:var(--muted);margin-left:auto">— ${quote.source}</span>
+    </div>
+    <div class="dash-quote-romaji"><code>${quote.r}</code></div>
+    <div class="dash-quote-en">${quote.en}</div>
+  `;
+}
+
+function showFloatingQuotePopup(quote) {
+  const popup = document.getElementById('floatingQuoteToast');
+  if (!popup) return;
+
+  if (floatingQuoteTimeout) {
+    clearTimeout(floatingQuoteTimeout);
+    floatingQuoteTimeout = null;
+  }
+
+  const cleanAudio = cleanRubyAudio(quote.jp);
+
+  popup.innerHTML = `
+    <div class="fqt-card">
+      <div class="fqt-header">
+        <div class="fqt-badge">
+          <span class="pulse-dot"></span>
+          <span>${quote.theme || '⚡ 5-Min Energy Boost'}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <button class="fqt-audio-btn" onclick="playJapaneseAudio('${cleanAudio}')" title="Listen Pronunciation">🔊</button>
+          <button class="fqt-close-btn" onclick="dismissFloatingQuote()" title="Close">✕</button>
+        </div>
+      </div>
+      <div class="fqt-jp">${formatFuriganaRuby(quote.jp)}</div>
+      <div class="fqt-romaji"><code>${quote.r}</code></div>
+      <div class="fqt-en">${quote.en}</div>
+      <div class="fqt-timer-bar-wrap">
+        <div class="fqt-timer-bar"></div>
+      </div>
+    </div>
+  `;
+
+  popup.style.display = 'block';
+  popup.classList.remove('hiding');
+  popup.classList.add('showing');
+
+  // Auto-dismiss after exactly 10 seconds (10000ms)
+  floatingQuoteTimeout = setTimeout(() => {
+    dismissFloatingQuote();
+  }, 10000);
+}
+
+function dismissFloatingQuote() {
+  const popup = document.getElementById('floatingQuoteToast');
+  if (!popup) return;
+  if (floatingQuoteTimeout) {
+    clearTimeout(floatingQuoteTimeout);
+    floatingQuoteTimeout = null;
+  }
+  popup.classList.remove('showing');
+  popup.classList.add('hiding');
+  setTimeout(() => {
+    popup.style.display = 'none';
+    popup.classList.remove('hiding');
+  }, 350);
+}
+
+function updateMotivationalQuote(isManual = false) {
+  currentMotivationalQuote = getRandomMotivationalQuote();
+  renderDashboardQuote(currentMotivationalQuote);
+
+  // If user is on another screen (not dashboard), pop up for 10 seconds!
+  const isDashActive = document.getElementById('page-dashboard') && 
+                        document.getElementById('page-dashboard').classList.contains('active');
+  if (!isDashActive) {
+    showFloatingQuotePopup(currentMotivationalQuote);
+  }
+}
+
+function refreshMotivationalQuote(manual = true) {
+  nextQuoteSeconds = 300;
+  updateMotivationalQuote(manual);
+  if (manual) toast('⚡ Energy Quote Refreshed!');
+}
+
+function initMotivationalQuoteSystem() {
+  currentMotivationalQuote = getRandomMotivationalQuote();
+  renderDashboardQuote(currentMotivationalQuote);
+
+  // 1-second interval to update countdown & trigger 5-min update
+  if (window._quoteCountdownInterval) clearInterval(window._quoteCountdownInterval);
+  window._quoteCountdownInterval = setInterval(() => {
+    nextQuoteSeconds--;
+    if (nextQuoteSeconds <= 0) {
+      nextQuoteSeconds = 300;
+      updateMotivationalQuote(false);
+    }
+    const cdEl = document.getElementById('dashQuoteCountdown');
+    if (cdEl) {
+      const m = Math.floor(nextQuoteSeconds / 60);
+      const s = nextQuoteSeconds % 60;
+      cdEl.textContent = `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+  }, 1000);
 }
 
 function buildCal(){

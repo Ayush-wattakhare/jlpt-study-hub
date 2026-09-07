@@ -233,6 +233,25 @@
     </div>
   </div>
 
+  <!-- ⚡ 5-Minute Energetic Motivational Proverb Banner -->
+  <div class="dash-quote-card" id="dashQuoteCard">
+    <div class="dash-quote-header">
+      <div class="dash-quote-badge">
+        <span class="pulse-dot"></span>
+        <span id="dashQuoteTheme">⚡ 5-MIN ENERGY BOOST</span>
+      </div>
+      <div class="dash-quote-actions">
+        <span class="dash-quote-timer">Next quote in: <strong id="dashQuoteCountdown">5:00</strong></span>
+        <button class="dash-quote-refresh-btn" onclick="refreshMotivationalQuote(true)" title="Get a new motivational quote now">
+          🔄 New Energy Quote
+        </button>
+      </div>
+    </div>
+    <div class="dash-quote-body" id="dashQuoteBody">
+      <!-- Populated dynamically -->
+    </div>
+  </div>
+
   <!-- Stats Row -->
   <div class="stats-grid" id="statsGrid">
     <div class="stat-card">
@@ -1841,6 +1860,9 @@
     </div>
   </div>
 </div>
+
+<!-- Floating 10-Second Energy Boost Popup (Shows when user is on another screen) -->
+<div id="floatingQuoteToast" class="floating-quote-toast" style="display:none"></div>
 
 </body>
 </html>
