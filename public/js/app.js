@@ -449,12 +449,12 @@ function renderDashboard(){
     {num:1, days:[6,12],name:'Vocabulary milestones',tasks:['Numbers, counters, dates','Greetings & daily phrases','Family & body parts','Food, places, transport','Core verbs (25 words)','Adjectives (top 25)','Vocab full review'], keys:['cl-N5-v1','cl-N5-v2','cl-N5-v3','cl-N5-v4','cl-N5-v5']},
     {num:2, days:[13,20],name:'Grammar patterns',tasks:['は vs が particle','を + verb conjugation','に で から まで','Neg + question forms','Past tense ~ました','あります vs います','い-adj & な-adj','〜たい review'], keys:['cl-N5-g1','cl-N5-g2','cl-N5-g3','cl-N5-g4']},
     {num:3, days:[21,26],name:'Kanji Mastery',tasks:['Numbers (13)','Time/calendar kanji','People & nature','Action/directions','Kanji compounds','Reading with kanji'], keys:['cl-N5-k1','cl-N5-k2','cl-N5-k3']},
-    {num:4, days:[27,35],name:'Exam Simulation',tasks:['Reading drills','Grammar fill-in','Vocab context','Mock test 1','Mock test 2','Final live exam prep'], keys:[]}
+    {num:4, days:[27,35],name:'Exam Simulation',tasks:['Listening scenarios drill','AI free conversation roleplay','Section practice test','Live timed exam pass (≥60%)'], keys:['cl-N5-e1','cl-N5-e2','cl-N5-e3','cl-N5-e4']}
   ] : [
-    {num:1, days:[1,7],name:'Advanced Vocabulary',tasks:['Complex objects','Abstract nouns','Advanced verbs','Formal expressions','Vocab drills','Contextual review'], keys:['cl-N4-v1','cl-N4-v2']},
-    {num:2, days:[8,18],name:'N4 Grammar',tasks:['Complete ~te patterns','Conditionals ~tara','Hearsay ~rashii','Passive & causative','Expectation ~hazu','Grammar review'], keys:['cl-N4-g1','cl-N4-g2','cl-N4-g3']},
-    {num:3, days:[19,25],name:'Kanji Mastery',tasks:['Identify 300 total kanji','Kanji compounds (N4)','Complex readings','Advanced stroke order'], keys:['cl-N4-k1','cl-N4-k2']},
-    {num:4, days:[26,35],name:'Exam Simulation',tasks:['Full reading passage','Listening simulation','Vocab/Grammar mock','Live exam set 1','Live exam set 2'], keys:[]}
+    {num:1, days:[1,7],name:'Advanced Vocabulary',tasks:['Complex objects','Abstract nouns','Advanced verbs','Formal expressions','Vocab drills','Contextual review'], keys:['cl-N4-v1','cl-N4-v2','cl-N4-v3']},
+    {num:2, days:[8,18],name:'N4 Grammar',tasks:['Conditionals ~tara','Passive & causative','Hearsay ~rashii','Honorifics & keigo','Giving & receiving ~ageru'], keys:['cl-N4-g1','cl-N4-g2','cl-N4-g3','cl-N4-g4','cl-N4-g5']},
+    {num:3, days:[19,25],name:'Kanji Mastery',tasks:['Identify 300 total kanji','Kanji compounds (N4)','Complex readings','Advanced stroke order'], keys:['cl-N4-k1','cl-N4-k2','cl-N4-k3']},
+    {num:4, days:[26,35],name:'Exam Simulation',tasks:['N4 listening dialogue','N4 reading passage drill','N4 live exam simulation'], keys:['cl-N4-e1','cl-N4-e2','cl-N4-e3']}
   ];
   
   let activePhaseIndex = 0;
@@ -3168,76 +3168,168 @@ function renderExamHistory() {
   `;
 }
 
+function navigateToModule(page, subTab) {
+  if (typeof goto === 'function') {
+    goto(page);
+  }
+  if (page === 'learn' && subTab) {
+    setTimeout(() => {
+      document.querySelectorAll('.learn-section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('#learnTabs .tab-btn').forEach(b => b.classList.remove('active'));
+      const targetSection = document.getElementById('ls-' + subTab);
+      if (targetSection) targetSection.classList.add('active');
+      const b = document.querySelector(`#learnTabs .tab-btn[onclick*="'${subTab}'"]`);
+      if (b) b.classList.add('active');
+    }, 20);
+  } else if (page === 'practice' && subTab) {
+    setTimeout(() => {
+      if (typeof practiceTab === 'function') {
+        const b = document.querySelector(`#practiceTabs .tab-btn[onclick*="'${subTab}'"]`);
+        practiceTab(subTab, b);
+      }
+    }, 20);
+  }
+}
+
 function renderChecklist(){
   // preserve open state
   const openIds = Array.from(document.querySelectorAll('.cl-section.open')).map(el => el.id);
 
+  const vocab = VOCAB[S.level] || [];
+  const grammar = GRAMMAR[S.level] || [];
+  const kanji = KANJI[S.level] || [];
+  const vDone = Object.keys(S.progress||{}).filter(k=>k.startsWith('voc-')&&S.progress[k]&&k.endsWith('_'+S.level)).length;
+  const gDone = Object.keys(S.progress||{}).filter(k=>k.startsWith('gram-')&&S.progress[k]&&k.endsWith('_'+S.level)).length;
+  const kDone = Object.keys(S.learnedKanji||{}).filter(k=>k.endsWith('_'+S.level)&&S.learnedKanji[k]).length;
+  const tDone = (S.testResults || []).length;
+  const examPassed = (S.testResults || []).some(r => r.score >= 60);
+
   const n5Phases=[
-    {id:'p0',name:'Writing Systems',badge:'Phase 0',items:[
-      {id:'w1',text:'Memorize Hiragana chart (46)',pts:20},
-      {id:'w2',text:'Practice writing Hiragana daily',pts:20},
-      {id:'w3',text:'Memorize Katakana chart (46)',pts:20},
-      {id:'w4',text:'Write Katakana names & words',pts:20},
+    {id:'p0',name:'Writing Systems (文字・表記)',badge:'Phase 0',items:[
+      {id:'w1',text:'Memorize Hiragana chart (46 characters)',pts:20,action:"navigateToModule('learn','kana')",actionLabel:'Hiragana ➜'},
+      {id:'w2',text:'Practice Hiragana combination sounds (拗音) & drills',pts:20,action:"navigateToModule('practice','kana')",actionLabel:'Kana Quiz ➜'},
+      {id:'w3',text:'Memorize Katakana chart (46 characters)',pts:20,action:"navigateToModule('learn','kana')",actionLabel:'Katakana ➜'},
+      {id:'w4',text:'Write Katakana loanwords & foreign names',pts:20,action:"navigateToModule('practice','kana')",actionLabel:'Practice ➜'}
     ]},
-    {id:'p1',name:'Vocabulary milestones',badge:'Phase 1',items:[
-      {id:'v1',text:'Numbers 1-10,000 & counters',pts:10},
-      {id:'v2',text:'Greetings & daily phrases (20)',pts:10},
-      {id:'v3',text:'Family, body, food, places',pts:15},
-      {id:'v4',text:'Core verbs (top 20 words)',pts:15},
-      {id:'v5',text:'Adjectives (top 20 words)',pts:15},
+    {id:'p1',name:'Vocabulary Milestones (語彙)',badge:'Phase 1',items:[
+      {id:'v1',text:'Numbers 1-10,000, calendar dates & core counters',pts:15,action:"navigateToModule('learn','vocab')",actionLabel:'Vocab ➜'},
+      {id:'v2',text:'Greetings, daily polite phrases & conversational expressions',pts:15,action:"navigateToModule('practice','vocab')",actionLabel:'Vocab Quiz ➜'},
+      {id:'v3',text:'Family, food, places & time vocabulary',pts:15,action:"navigateToModule('practice','flashcard')",actionLabel:'Flashcards ➜'},
+      {id:'v4',text:'Master all 85 N5 Verbs (Godan, Ichidan, Irregular)',pts:20,action:"navigateToModule('learn','grammar')",actionLabel:'Conjugation ➜',liveStat:`${vDone}/${vocab.length} learned`},
+      {id:'v5',text:'Master all 66 N5 Adjectives (い vs な-adjectives)',pts:20,action:"navigateToModule('learn','grammar')",actionLabel:'Adjectives ➜'}
     ]},
-    {id:'p2',name:'Grammar patterns',badge:'Phase 2',items:[
-      {id:'g1',text:'Particles: は, が, を, に, へ',pts:20},
-      {id:'g2',text:'Verb conjugation basics',pts:20},
-      {id:'g3',text:'Negative and question forms',pts:20},
-      {id:'g4',text:'Adjective conjugation',pts:20},
+    {id:'p2',name:'Grammar Patterns (文法・助詞)',badge:'Phase 2',items:[
+      {id:'g1',text:'Essential particles: は, が, を, に, で, へ, と, も, から, まで',pts:25,action:"navigateToModule('practice','particle')",actionLabel:'Particle Drill ➜'},
+      {id:'g2',text:'Verb conjugations: Polite 〜ます, Plain, and 〜て-form rules',pts:25,action:"navigateToModule('learn','grammar')",actionLabel:'Te-Form Rules ➜'},
+      {id:'g3',text:'Desire (〜たい), Negative (〜ない), and Requests (〜てください)',pts:25,action:"navigateToModule('practice','grammar')",actionLabel:'Grammar Quiz ➜'},
+      {id:'g4',text:'Giving permission (〜てもいい) and Obligation (〜なければなりません)',pts:25,action:"navigateToModule('learn','grammar')",actionLabel:'Grammar Patterns ➜',liveStat:`${gDone}/${grammar.length} learned`}
     ]},
-    {id:'p3',name:'Kanji Mastery',badge:'Phase 3',items:[
-      {id:'k1',text:'Identify 100 N5 Kanji',pts:40},
-      {id:'k2',text:'Read Kanji compounds',pts:40},
-      {id:'k3',text:'Write basic Kanji meanings',pts:40},
+    {id:'p3',name:'Kanji Mastery (漢字)',badge:'Phase 3',items:[
+      {id:'k1',text:'Identify all 100+ N5 Kanji with stroke animations',pts:35,action:"navigateToModule('learn','kanji')",actionLabel:'Kanji Grid ➜',liveStat:`${kDone}/${kanji.length} learned`},
+      {id:'k2',text:'Master Onyomi & Kunyomi readings of common compounds',pts:35,action:"navigateToModule('practice','kanji')",actionLabel:'Kanji Quiz ➜'},
+      {id:'k3',text:'Practice writing and stroke order guide',pts:30,action:"navigateToModule('learn','kanji')",actionLabel:'Stroke Guide ➜'}
+    ]},
+    {id:'p4',name:'Listening & Exam Readiness (聴解・模擬試験)',badge:'Phase 4',items:[
+      {id:'e1',text:'Listen and practice situational dialogues in Listening Hub',pts:25,action:"navigateToModule('practice','listening')",actionLabel:'Listening Hub ➜'},
+      {id:'e2',text:'Complete Free Conversation roleplay with Sakura-sensei',pts:25,action:"goto('aivoice')",actionLabel:'AI Voice Chat ➜'},
+      {id:'e3',text:'Take a Section Practice Test (Language Knowledge & Reading)',pts:30,action:"goto('test')",actionLabel:'Mock Tests ➜',liveStat:`${tDone} tests taken`},
+      {id:'e4',text:'Pass a full timed Live Exam simulation (Score ≥ 60%)',pts:50,action:"goto('exam')",actionLabel:'Live Exam ➜',liveStat:examPassed ? 'Passed ✓' : 'Pending'}
     ]}
   ];
 
   const n4Phases=[
-    {id:'p1',name:'Advanced Vocab',badge:'Phase 1',items:[
-      {id:'v1',text:'Memorize 500 N4 words',pts:30},
-      {id:'v2',text:'Complex nouns & attributes',pts:30},
+    {id:'p1',name:'Advanced Vocabulary (N4 語彙)',badge:'Phase 1',items:[
+      {id:'v1',text:'Master 300+ N4 core words & compound nouns',pts:25,action:"navigateToModule('learn','vocab')",actionLabel:'Vocab ➜',liveStat:`${vDone}/${vocab.length} learned`},
+      {id:'v2',text:'Transitive vs Intransitive verb pairs (自動詞・他動詞)',pts:25,action:"navigateToModule('practice','flashcard')",actionLabel:'Flashcards ➜'},
+      {id:'v3',text:'Common Katakana loanwords & social expressions',pts:20,action:"navigateToModule('practice','vocab')",actionLabel:'Vocab Quiz ➜'}
     ]},
-    {id:'p2',name:'N4 Grammar',badge:'Phase 2',items:[
-      {id:'g1',text:'Hearsay & conditionals (~rashii, ~tara)',pts:40},
-      {id:'g2',text:'Expectations & results (~hazu, ~shimau)',pts:40},
-      {id:'g3',text:'Formal Japanese (Honorifics)',pts:40},
+    {id:'p2',name:'N4 Grammar & Intermediate Structures (文法)',badge:'Phase 2',items:[
+      {id:'g1',text:'Conditionals & Hypotheses: 〜たら, 〜ば, 〜なら, 〜と',pts:30,action:"navigateToModule('learn','grammar')",actionLabel:'Grammar ➜'},
+      {id:'g2',text:'Passive (受身 〜られる) & Causative (使役 〜させる) forms',pts:35,action:"navigateToModule('practice','grammar')",actionLabel:'Grammar Quiz ➜'},
+      {id:'g3',text:'Hearsay & Conjecture: 〜そうだ, 〜らしい, 〜ようだ',pts:30,action:"navigateToModule('learn','grammar')",actionLabel:'Grammar Guide ➜'},
+      {id:'g4',text:'Honorifics & Humble Japanese (敬語・謙譲語・丁寧語)',pts:35,action:"navigateToModule('practice','grammar')",actionLabel:'Keigo Drill ➜'},
+      {id:'g5',text:'Giving & Receiving actions: 〜てあげる, 〜てもらう, 〜てくれる',pts:30,action:"navigateToModule('practice','particle')",actionLabel:'Particle Drill ➜',liveStat:`${gDone}/${grammar.length} learned`}
     ]},
-    {id:'p3',name:'N4 Kanji (300 total)',badge:'Phase 3',items:[
-      {id:'k1',text:'Master 150+ new N4 Kanji',pts:50},
-      {id:'k2',text:'Reading long passages',pts:50},
+    {id:'p3',name:'N4 Kanji Mastery (漢字 300字)',badge:'Phase 3',items:[
+      {id:'k1',text:'Recognize 150+ new N4 Kanji (300 total characters)',pts:35,action:"navigateToModule('learn','kanji')",actionLabel:'Kanji Grid ➜',liveStat:`${kDone}/${kanji.length} learned`},
+      {id:'k2',text:'Master on/kun readings in sentence reading context',pts:35,action:"navigateToModule('practice','kanji')",actionLabel:'Kanji Quiz ➜'},
+      {id:'k3',text:'Kanji compound vocabulary & multi-character words',pts:30,action:"navigateToModule('practice','flashcard')",actionLabel:'Flashcards ➜'}
+    ]},
+    {id:'p4',name:'N4 Listening & Mock Simulation (実践・本番対策)',badge:'Phase 4',items:[
+      {id:'e1',text:'Listen to multi-speaker dialogues and answer comprehension questions',pts:30,action:"navigateToModule('practice','listening')",actionLabel:'Listening Hub ➜'},
+      {id:'e2',text:'Read short and medium Japanese essays & instructions',pts:35,action:"goto('test')",actionLabel:'N4 Tests ➜'},
+      {id:'e3',text:'Pass N4 Timed Live Exam with official scoring threshold (≥ 60%)',pts:50,action:"goto('exam')",actionLabel:'Live Exam ➜',liveStat:examPassed ? 'Passed ✓' : 'Pending'}
     ]}
   ];
 
   const phases = S.level === 'N5' ? n5Phases : n4Phases;
 
-  const cont=document.getElementById('checklistContainer');
-  cont.innerHTML=phases.map(p=>`
-    <div class="cl-section ${openIds.includes('cl-'+p.id)?'open':''}" id="cl-${p.id}">
-      <div class="cl-section-header" onclick="this.parentElement.classList.toggle('open')">
-        <span class="cl-phase-badge">${p.badge}</span>
-        <span class="cl-section-title">${p.name}</span>
-        <span style="margin-left:auto">▽</span>
+  // Auto-expand first incomplete phase if user hasn't explicitly toggled sections
+  let autoOpenId = null;
+  if (openIds.length === 0) {
+    for (const p of phases) {
+      const allDone = p.items.every(item => S.progress[`cl-${S.level}-${item.id}`]);
+      if (!allDone) {
+        autoOpenId = 'cl-' + p.id;
+        break;
+      }
+    }
+    if (!autoOpenId && phases.length > 0) autoOpenId = 'cl-' + phases[0].id;
+  }
+
+  const cont = document.getElementById('checklistContainer');
+  if (!cont) return;
+
+  cont.innerHTML = phases.map(p => {
+    const sectionId = 'cl-' + p.id;
+    const isExplicitOpen = openIds.includes(sectionId);
+    const isOpen = openIds.length > 0 ? isExplicitOpen : (sectionId === autoOpenId);
+
+    const totalItems = p.items.length;
+    const doneItems = p.items.filter(item => S.progress[`cl-${S.level}-${item.id}`]).length;
+    const pct = totalItems ? Math.round((doneItems / totalItems) * 100) : 0;
+    const isPhaseComplete = (totalItems > 0 && doneItems === totalItems);
+
+    return `
+      <div class="cl-section ${isOpen ? 'open' : ''}" id="${sectionId}">
+        <div class="cl-section-header" onclick="this.parentElement.classList.toggle('open')">
+          <span class="cl-phase-badge">${p.badge}</span>
+          <span class="cl-section-title">${p.name}</span>
+
+          <div class="cl-progress-wrap">
+            <div class="cl-progress-bar">
+              <div class="cl-progress-fill" style="width:${pct}%"></div>
+            </div>
+            <span class="cl-progress-text">${doneItems}/${totalItems} (${pct}%)</span>
+            ${isPhaseComplete ? '<span class="cl-complete-badge">✓ Complete</span>' : ''}
+          </div>
+
+          <span style="margin-left:4px;font-size:12px;color:var(--muted)">▽</span>
+        </div>
+        <div class="cl-body">
+          ${p.items.map(item => {
+            const key = `cl-${S.level}-${item.id}`;
+            const done = S.progress[key];
+            return `
+              <div class="cl-item ${done ? 'done' : ''}" onclick="toggleCheckItem('${key}',${item.pts},'${item.text}')">
+                <div class="cl-box">${done ? '✓' : ''}</div>
+                <div class="cl-text">
+                  ${item.text}
+                  ${item.liveStat ? `<span class="cl-live-stat">📊 ${item.liveStat}</span>` : ''}
+                </div>
+                ${item.action ? `
+                  <button class="cl-item-action-btn" onclick="event.stopPropagation(); ${item.action}">
+                    ${item.actionLabel || 'Study ➜'}
+                  </button>
+                ` : ''}
+                <div class="cl-pts">+${item.pts}pt</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
       </div>
-      <div class="cl-body">
-        ${p.items.map(item=>{
-          const key=`cl-${S.level}-${item.id}`;
-          const done=S.progress[key];
-          return`<div class="cl-item ${done?'done':''}" onclick="toggleCheckItem('${key}',${item.pts},'${item.text}')">
-            <div class="cl-box">${done?'✓':''}</div>
-            <div class="cl-text">${item.text}</div>
-            <div class="cl-pts">+${item.pts}pt</div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 async function toggleCheckItem(key,pts,label="Task Completed"){
@@ -3258,12 +3350,14 @@ async function toggleCheckItem(key,pts,label="Task Completed"){
     {num:0, keys:['cl-N5-w1','cl-N5-w2','cl-N5-w3','cl-N5-w4']},
     {num:1, keys:['cl-N5-v1','cl-N5-v2','cl-N5-v3','cl-N5-v4','cl-N5-v5']},
     {num:2, keys:['cl-N5-g1','cl-N5-g2','cl-N5-g3','cl-N5-g4']},
-    {num:3, keys:['cl-N5-k1','cl-N5-k2','cl-N5-k3']}
+    {num:3, keys:['cl-N5-k1','cl-N5-k2','cl-N5-k3']},
+    {num:4, keys:['cl-N5-e1','cl-N5-e2','cl-N5-e3','cl-N5-e4']}
   ];
   const n4Phases = [
-    {num:1, keys:['cl-N4-v1','cl-N4-v2']},
-    {num:2, keys:['cl-N4-g1','cl-N4-g2','cl-N4-g3']},
-    {num:3, keys:['cl-N4-k1','cl-N4-k2']}
+    {num:1, keys:['cl-N4-v1','cl-N4-v2','cl-N4-v3']},
+    {num:2, keys:['cl-N4-g1','cl-N4-g2','cl-N4-g3','cl-N4-g4','cl-N4-g5']},
+    {num:3, keys:['cl-N4-k1','cl-N4-k2','cl-N4-k3']},
+    {num:4, keys:['cl-N4-e1','cl-N4-e2','cl-N4-e3']}
   ];
   const phases = S.level === 'N5' ? n5Phases : n4Phases;
   const currentPhase = phases.find(ph => ph.keys.includes(key));
