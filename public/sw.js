@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jlpt-store-v4';
+const CACHE_NAME = 'jlpt-store-v5';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();

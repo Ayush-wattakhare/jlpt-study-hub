@@ -318,6 +318,7 @@ async function init(){
   initReminderEngine();
   initMotivationalQuoteSystem();
   if(!document.querySelector('.mob-nav')) initMobileNav();
+  setupFloatTimerListeners();
   initHashRouter();
 
   // 2. In background, if logged in, sync with server and merge
@@ -3157,6 +3158,37 @@ async function timerReset(){
   S.lastSyncedSeconds = 0;
   renderStudyTimer();
   toast('Timer reset');
+}
+
+function toggleTimerMinimize(e) {
+  if (e && e.stopPropagation) e.stopPropagation();
+  const ft = document.getElementById('floatTimer');
+  if (!ft) return;
+  ft.classList.toggle('minimized');
+}
+window.toggleTimerMinimize = toggleTimerMinimize;
+
+function setupFloatTimerListeners() {
+  const ft = document.getElementById('floatTimer');
+  if (!ft) return;
+  const icon = ft.querySelector('.ft-icon');
+  if (icon) {
+    icon.onclick = (e) => {
+      e.stopPropagation();
+      toggleTimerMinimize(e);
+    };
+  }
+  ft.onclick = (e) => {
+    if (ft.classList.contains('minimized')) {
+      toggleTimerMinimize(e);
+    }
+  };
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupFloatTimerListeners);
+} else {
+  setupFloatTimerListeners();
 }
 
 // Lifecycle listeners to prevent timer loss on tab switch or close

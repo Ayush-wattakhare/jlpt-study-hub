@@ -17,7 +17,7 @@
 <meta property="og:image" content="https://jlpt-study-hub.vercel.app/img/og-image.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/style.css?v=4">
+<link rel="stylesheet" href="/css/style.css?v=5">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#fafaf8">
 <link rel="apple-touch-icon" href="/img/icon-192.jpg">
@@ -1756,9 +1756,9 @@
 </main>
 
 <!-- ── FLOATING TIMER ── -->
-<div class="float-timer" id="floatTimer">
+<div class="float-timer" id="floatTimer" onclick="if(this.classList.contains('minimized')) toggleTimerMinimize(event)">
   <div class="ft-inner">
-    <span class="ft-icon">⏰</span>
+    <span class="ft-icon" onclick="toggleTimerMinimize()" title="Tap to Minimize / Expand timer">⏰</span>
     <span class="ft-time" id="ftTime">00:00:00</span>
     <div class="ft-btns">
       <button onclick="timerToggle()" id="ftBtn" title="Start/Pause">▶</button>
@@ -1795,7 +1795,7 @@
 <script src="/js/listening.js"></script>
 <script src="/js/resource.js"></script>
 <script src="/js/aivoice.js"></script>
-<script src="/js/app.js?v=4"></script>
+<script src="/js/app.js?v=5"></script>
 <script>
   if('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js');
