@@ -1339,13 +1339,13 @@ function openKanaModal(char, romaji, type, group) {
 
   currentKanjiObj = { k: char, char: char, on: romaji, kun: romaji, en: `${typeLabel} character '${char}' (${romaji})`, cat: group };
   currentKanjiKey = 'kana_' + char;
-  const strokeCount = char.length > 1 ? 3 : 2; // Default stroke count estimate for Kana
+  const strokeCount = (typeof getKanaStrokeCount === 'function') ? getKanaStrokeCount(char) : (char.length > 1 ? 3 : 2);
 
   // Update Header Elements
   document.getElementById('kmChar').textContent = char;
   document.getElementById('kmLevel').textContent = isHira ? 'Hiragana' : 'Katakana';
   document.getElementById('kmCategory').textContent = group || 'Kana';
-  document.getElementById('kmStrokesBadge').textContent = strokeCount + ' strokes';
+  document.getElementById('kmStrokesBadge').textContent = strokeCount + (strokeCount === 1 ? ' stroke' : ' strokes');
   document.getElementById('kmMeaning').textContent = `Sound: "${romaji}" · (${typeLabel})`;
   document.getElementById('kmOn').textContent = romaji;
   const onRomEl = document.getElementById('kmOnRom');
@@ -1357,7 +1357,7 @@ function openKanaModal(char, romaji, type, group) {
   // Update Radical & Component info
   document.getElementById('kmRadicalText').textContent = `${typeLabel} - ${group}`;
   document.getElementById('kmCompText').textContent = `Standard Japanese syllabary character for pronunciation "${romaji}"`;
-  document.getElementById('kmStrokeCountText').textContent = `${strokeCount} stroke(s)`;
+  document.getElementById('kmStrokeCountText').textContent = strokeCount + (strokeCount === 1 ? ' stroke' : ' strokes');
 
   // Update Learned Button
   updateModalLearnedBtn();
@@ -1539,8 +1539,80 @@ async function renderKanjiStrokeAnimation(kanjiChar, strokeCount){
   if(!box) return;
   box.innerHTML = '<div style="color:var(--muted);font-size:13px">Loading stroke data...</div>';
 
-  const svgUrl = getKanjiVGUrl(kanjiChar);
   try {
+    if (kanjiChar && kanjiChar.length > 1) {
+      // Multi-character Kana Combo (Yōon digraph e.g. きゃ, キャ)
+      const c1 = kanjiChar[0];
+      const c2 = kanjiChar[1];
+      const [res1, res2] = await Promise.all([
+        fetch(getKanjiVGUrl(c1)),
+        fetch(getKanjiVGUrl(c2))
+      ]);
+      if (!res1.ok || !res2.ok) throw new Error('Kana combo SVG fetch failed');
+      const [svgTxt1, svgTxt2] = await Promise.all([res1.text(), res2.text()]);
+
+      const parser = new DOMParser();
+      const doc1 = parser.parseFromString(svgTxt1, 'image/svg+xml');
+      const doc2 = parser.parseFromString(svgTxt2, 'image/svg+xml');
+
+      const paths1 = Array.from(doc1.querySelectorAll('path')).map(p => p.getAttribute('d')).filter(Boolean);
+      const paths2 = Array.from(doc2.querySelectorAll('path')).map(p => p.getAttribute('d')).filter(Boolean);
+
+      // Stroke paths for Character 1 (Base Kana)
+      const c1PathElements = paths1.map(d => `<path d="${d}" fill="none" stroke="var(--ink)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+
+      // Stroke numbers for Character 1
+      const c1Texts = Array.from(doc1.querySelectorAll('text')).map(t => {
+        return `<text transform="${t.getAttribute('transform') || ''}">${t.textContent}</text>`;
+      }).join('');
+
+      // Stroke paths for Character 2 (Small Kana)
+      const c2PathElements = paths2.map(d => `<path d="${d}" fill="none" stroke="var(--ink)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+
+      // Stroke numbers for Character 2 re-numbered sequentially
+      const offset = paths1.length;
+      const c2Texts = Array.from(doc2.querySelectorAll('text')).map(t => {
+        const origNum = parseInt(t.textContent.trim(), 10);
+        const newNum = isNaN(origNum) ? t.textContent : (origNum + offset);
+        return `<text transform="${t.getAttribute('transform') || ''}">${newNum}</text>`;
+      }).join('');
+
+      const combinedSvg = `
+        <svg width="180" height="180" viewBox="0 0 109 109">
+          <line x1="0" y1="54.5" x2="109" y2="54.5" stroke="var(--border)" stroke-dasharray="2,2" opacity="0.6"/>
+          <line x1="54.5" y1="0" x2="54.5" y2="109" stroke="var(--border)" stroke-dasharray="2,2" opacity="0.6"/>
+          <g id="kvg-combo-c1" transform="translate(1, 4) scale(0.74)">
+            ${c1PathElements}
+            ${c1Texts}
+          </g>
+          <g id="kvg-combo-c2" transform="translate(52, 38) scale(0.52)">
+            ${c2PathElements}
+            ${c2Texts}
+          </g>
+        </svg>
+      `;
+
+      box.innerHTML = combinedSvg;
+      const svgEl = box.querySelector('svg');
+      if (svgEl) {
+        styleAndAnimateKanjiSVG(svgEl);
+      }
+
+      // Step-by-step stroke breakdown
+      const stepItems = [
+        ...paths1.map(d => ({ d, transform: 'translate(1, 4) scale(0.74)' })),
+        ...paths2.map(d => ({ d, transform: 'translate(52, 38) scale(0.52)' }))
+      ];
+      renderKanjiSteps(kanjiChar, stepItems);
+
+      const totalStrokes = paths1.length + paths2.length;
+      document.getElementById('kmStrokesBadge').textContent = totalStrokes + (totalStrokes === 1 ? ' stroke' : ' strokes');
+      document.getElementById('kmStrokeCountText').textContent = totalStrokes + (totalStrokes === 1 ? ' stroke' : ' strokes');
+      return;
+    }
+
+    // Single character Kanji or Kana
+    const svgUrl = getKanjiVGUrl(kanjiChar);
     const resp = await fetch(svgUrl);
     if(!resp.ok) throw new Error('SVG fetch failed');
     let svgText = await resp.text();
@@ -1594,13 +1666,23 @@ function styleAndAnimateKanjiSVG(svgEl){
 
   texts.forEach((text) => {
     text.style.display = showStrokeNumbers ? 'block' : 'none';
-    text.style.fontSize = '12px';
+    text.style.fontSize = text.closest('#kvg-combo-c2') ? '17px' : '12px';
     text.style.fill = 'var(--red)';
     text.style.fontFamily = 'var(--font-mono)';
   });
 }
 
 function generateFallbackKanjiSVG(kanjiChar, strokeCount){
+  if (kanjiChar && kanjiChar.length > 1) {
+    return `
+      <svg width="180" height="180" viewBox="0 0 109 109" class="fallback-kanji-svg">
+        <line x1="0" y1="54.5" x2="109" y2="54.5" stroke="var(--border)" stroke-dasharray="3,3" />
+        <line x1="54.5" y1="0" x2="54.5" y2="109" stroke="var(--border)" stroke-dasharray="3,3" />
+        <text x="36" y="70" font-size="56" text-anchor="middle" font-family="'Noto Sans JP', sans-serif" fill="var(--ink)" class="fallback-char-anim">${kanjiChar[0]}</text>
+        <text x="76" y="85" font-size="38" text-anchor="middle" font-family="'Noto Sans JP', sans-serif" fill="var(--ink)" class="fallback-char-anim">${kanjiChar[1]}</text>
+      </svg>
+    `;
+  }
   return `
     <svg width="180" height="180" viewBox="0 0 109 109" class="fallback-kanji-svg">
       <line x1="0" y1="54.5" x2="109" y2="54.5" stroke="var(--border)" stroke-dasharray="3,3" />
@@ -1618,11 +1700,13 @@ function playKanjiStrokeAnimation(){
     styleAndAnimateKanjiSVG(svgEl);
   } else {
     // Re-trigger fallback animation
-    const textEl = box.querySelector('.fallback-char-anim');
-    if(textEl){
-      textEl.style.animation = 'none';
-      void textEl.getBoundingClientRect(); // Reflow trigger
-      textEl.style.animation = 'fadeInStroke 0.8s ease forwards';
+    const textEls = box.querySelectorAll('.fallback-char-anim');
+    if(textEls.length > 0){
+      textEls.forEach(textEl => {
+        textEl.style.animation = 'none';
+        void textEl.getBoundingClientRect(); // Reflow trigger
+        textEl.style.animation = 'fadeInStroke 0.8s ease forwards';
+      });
     }
   }
 }
@@ -1650,11 +1734,26 @@ function renderKanjiSteps(kanjiChar, strokePathsOrCount){
     const paths = strokePathsOrCount;
     const totalSteps = paths.length;
     
+    // Formatting helpers that support both raw path strings and transformed path objects
+    const renderPrevStroke = (item) => {
+      if(typeof item === 'object' && item !== null){
+        return `<g transform="${item.transform}"><path d="${item.d}" fill="none" stroke="var(--ink)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+      }
+      return `<path d="${item}" fill="none" stroke="var(--ink)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`;
+    };
+
+    const renderCurrStroke = (item) => {
+      if(typeof item === 'object' && item !== null){
+        return `<g transform="${item.transform}"><path d="${item.d}" fill="none" stroke="#c0392b" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+      }
+      return `<path d="${item}" fill="none" stroke="#c0392b" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+    };
+
     for(let i = 1; i <= totalSteps; i++){
       // Previous cumulative strokes drawn in dark navy/ink
-      const prevStrokesSvg = paths.slice(0, i - 1).map(d => `<path d="${d}" fill="none" stroke="var(--ink)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+      const prevStrokesSvg = paths.slice(0, i - 1).map(renderPrevStroke).join('');
       // Current NEW stroke highlighted in bright RED (#c0392b) with slightly thicker line
-      const currentStrokeSvg = `<path d="${paths[i - 1]}" fill="none" stroke="#c0392b" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+      const currentStrokeSvg = renderCurrStroke(paths[i - 1]);
 
       html += `
         <div class="km-step-card">
@@ -1729,6 +1828,8 @@ function initPracticeCanvas(kanjiChar){
   
   if(watermark){
     watermark.textContent = kanjiChar;
+    watermark.style.fontSize = kanjiChar && kanjiChar.length > 1 ? '100px' : '160px';
+    watermark.style.letterSpacing = kanjiChar && kanjiChar.length > 1 ? '-6px' : 'normal';
     watermark.style.display = guideOn ? 'flex' : 'none';
   }
 
